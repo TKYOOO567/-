@@ -1,0 +1,935 @@
+<%- include('partials/header') %>
+
+<div id="three-container"></div>
+
+<div id="searchBar">
+  <div style="position:relative;display:flex;gap:8px;align-items:center;">
+    <input type="text" id="locateCode" placeholder="输入商品编码或名称" style="width:220px;">
+    <button type="button" class="btn btn-primary" id="locateBtn">定位</button>
+    <button type="button" class="btn btn-secondary" id="resetViewBtn">重置视角</button>
+  </div>
+  <div id="searchDropdown" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:rgba(10,14,26,0.95);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.5);max-height:200px;overflow-y:auto;width:300px;z-index:200;"></div>
+</div>
+
+<div id="legend">
+  <div class="legend-title">图例</div>
+  <div class="legend-item"><span class="legend-color" style="background:#64748b;"></span> 空位</div>
+  <div class="legend-item"><span class="legend-color" style="background:#f1c40f;"></span> 有货</div>
+  <div class="legend-item"><span class="legend-color" style="background:#e74c3c;"></span> 满仓</div>
+</div>
+
+<div id="tooltip"></div>
+<div id="detailPanel">
+  <div class="panel-header">
+    <span id="panelTitle">货格详情</span>
+    <button id="closePanel">&times;</button>
+  </div>
+  <div id="panelContent"></div>
+</div>
+
+<style>
+#three-container {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+#searchBar {
+  position: absolute;
+  top: 85px;
+  left: 20px;
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(12px);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  z-index: 100;
+  min-width: 360px;
+}
+#searchBar input {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+#searchBar input::placeholder {
+  color: var(--text-muted);
+}
+#searchBar input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+#searchDropdown {
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+#searchDropdown .drop-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  font-size: 13px;
+}
+#searchDropdown .drop-item:hover {
+  background: var(--bg-hover);
+}
+#searchDropdown .drop-item .d-code {
+  font-weight: bold;
+  color: var(--accent);
+}
+#searchDropdown .drop-item .d-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 2px;
+}
+#legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(12px);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  z-index: 100;
+  font-size: 13px;
+}
+#legend .legend-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+#legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+#legend .legend-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--border-glow);
+}
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  z-index: 1000;
+  display: none;
+  max-width: 260px;
+  line-height: 1.5;
+}
+#detailPanel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 310px;
+  max-height: 450px;
+  background: rgba(10, 14, 26, 0.94);
+  backdrop-filter: blur(14px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  z-index: 100;
+  display: none;
+  overflow: hidden;
+}
+#detailPanel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+#detailPanel .panel-header button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.2s;
+}
+#detailPanel .panel-header button:hover {
+  color: var(--accent);
+}
+#panelContent {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 380px;
+}
+#panelContent .product-item {
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--success);
+  background: var(--success-bg);
+}
+#panelContent .product-item.out {
+  border-left-color: var(--danger);
+}
+#panelContent .product-item .p-code {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+#panelContent .product-item .p-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+#panelContent .empty-cell {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+var container = document.getElementById('three-container');
+var tooltip = document.getElementById('tooltip');
+var detailPanel = document.getElementById('detailPanel');
+var panelContent = document.getElementById('panelContent');
+var panelTitle = document.getElementById('panelTitle');
+
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e1a);
+
+var camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.5, 200);
+camera.position.set(25, 20, 30);
+camera.lookAt(10, 0, 8);
+
+var renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+var labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(container.clientWidth, container.clientHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+var ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(50, 60, 50);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 200;
+dirLight.shadow.camera.left = -50;
+dirLight.shadow.camera.right = 50;
+dirLight.shadow.camera.top = 50;
+dirLight.shadow.camera.bottom = -50;
+scene.add(dirLight);
+
+var groundGeo = new THREE.PlaneGeometry(100, 100);
+var groundMat = new THREE.MeshPhongMaterial({ color: 0x1a1f2e, side: THREE.DoubleSide });
+var ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.6;
+ground.receiveShadow = true;
+scene.add(ground);
+
+var gridHelper = new THREE.GridHelper(100, 50, 0x1e293b, 0x334155);
+gridHelper.position.y = -0.59;
+scene.add(gridHelper);
+
+var controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.minDistance = 3;
+controls.maxDistance = 80;
+controls.target.set(10, 0, 8);
+controls.update();
+
+var raycaster = new THREE.Raycaster();
+raycaster.far = 50;
+raycaster.params.Line = { threshold: 0.5 };
+var mouse = new THREE.Vector2();
+var cellMeshes = [];
+var highlightedCell = null;
+var blinkInterval = null;
+var hoveredCell = null;
+var spreadCells = [];
+var spreadTargetPositions = {};
+var SPREAD_FACTOR = 1.8;
+var LERP_SPEED = 0.12;
+
+function buildLookup(products) {
+  var map = {};
+  products.forEach(function(p) {
+    var key = p.zone_code + '-' + p.row_num + '-' + p.col_num + '-' + p.layer_num;
+    if (!map[key]) map[key] = [];
+    map[key].push(p);
+  });
+  return map;
+}
+
+function renderShelves(zones, products, config) {
+  var lookup = buildLookup(products);
+
+  zones.forEach(function(zone) {
+    var cellW = zone.cell_width || 1;
+    var cellH = zone.cell_height || 0.8;
+    var cellD = zone.cell_depth || 1;
+    var posX = zone.pos_x || 0;
+    var posZ = zone.pos_z || 0;
+    var rows = zone.rows || 3;
+    var cols = zone.cols || 5;
+    var layers = zone.layers || 4;
+
+    var labelDiv = document.createElement('div');
+    labelDiv.textContent = zone.code;
+    labelDiv.style.cssText = 'background:rgba(0,212,255,0.1);color:#00d4ff;border:1px solid rgba(0,212,255,0.3);padding:4px 10px;border-radius:4px;font-weight:bold;font-size:15px;';
+    var label = new CSS2DObject(labelDiv);
+    label.position.set(posX + (cols * cellW) / 2 - cellW / 2, layers * cellH + 1.2, posZ - cellD);
+    scene.add(label);
+
+    for (var v = 1; v <= rows; v++) {
+      for (var u = 1; u <= cols; u++) {
+        for (var w = 1; w <= layers; w++) {
+          var key = zone.code + '-' + v + '-' + u + '-' + w;
+          var productsAtCell = lookup[key] || [];
+          var color = 0x334155;
+          var totalProductVolume = 0;
+          if (productsAtCell.length > 0) {
+            productsAtCell.forEach(function(p) {
+              var pl = p.length || 0;
+              var pw = p.width || 0;
+              var ph = p.height || 0;
+              totalProductVolume += (pl * pw * ph) / 1000000;
+            });
+            var cellVolume = cellW * cellH * cellD;
+            if (totalProductVolume >= cellVolume) {
+              color = 0xe74c3c;
+            } else {
+              color = 0xf1c40f;
+            }
+          }
+
+          var geo = new THREE.BoxGeometry(cellW * 0.88, cellH * 0.8, cellD * 0.88);
+          var mat = new THREE.MeshPhongMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.85,
+            shininess: 30
+          });
+          var cellMesh = new THREE.Mesh(geo, mat);
+          cellMesh.castShadow = true;
+          cellMesh.receiveShadow = true;
+
+          var cx = posX + (u - 1) * cellW;
+          var cy = (w - 1) * cellH + cellH / 2;
+          var cz = posZ + (v - 1) * cellD;
+          cellMesh.position.set(cx, cy, cz);
+
+          cellMesh.userData = {
+            zone_code: zone.code,
+            row_num: v,
+            col_num: u,
+            layer_num: w,
+            products: productsAtCell,
+            originalColor: color,
+            key: key,
+            cellVolume: cellW * cellH * cellD,
+            totalProductVolume: totalProductVolume,
+            originalX: cx,
+            originalY: cy,
+            originalZ: cz
+          };
+
+          var edgeGeo = new THREE.EdgesGeometry(geo);
+          var edgeMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.15 });
+          var edgeLine = new THREE.LineSegments(edgeGeo, edgeMat);
+          cellMesh.add(edgeLine);
+
+          scene.add(cellMesh);
+          cellMeshes.push(cellMesh);
+        }
+      }
+    }
+  });
+}
+
+function showTooltip(event, data) {
+  var text = '';
+  if (data.products.length > 0) {
+    text = data.products.map(function(p) {
+      return p.name + ' [' + p.code + '] x' + p.quantity;
+    }).join('<br>');
+    if (data.cellVolume > 0) {
+      var pct = Math.round((data.totalProductVolume / data.cellVolume) * 100);
+      text += '<br><small>体积占用：' + pct + '%</small>';
+    }
+  } else {
+    text = '空位<br><small>' + data.zone_code + '区 排' + data.row_num + ' 列' + data.col_num + ' 层' + data.layer_num + '</small>';
+  }
+  tooltip.innerHTML = text;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (event.clientX + 18) + 'px';
+  tooltip.style.top = (event.clientY - 10) + 'px';
+}
+
+function hideTooltip() {
+  tooltip.style.display = 'none';
+}
+
+function showDetail(data) {
+  panelTitle.textContent = data.zone_code + '区 排' + data.row_num + ' 列' + data.col_num + ' 层' + data.layer_num;
+  if (data.products.length === 0) {
+    panelContent.innerHTML = '<div class="empty-cell">空位 - 无商品存放</div>';
+  } else {
+    var html = '';
+    data.products.forEach(function(p) {
+      var cls = p.status === 'out' ? ' out' : '';
+      var statusText = p.status === 'in_stock' ? '在库' : '已出库';
+      html += '<div class="product-item' + cls + '">';
+      html += '<div class="p-code">' + p.code + '</div>';
+      html += '<div class="p-meta">名称：' + p.name + '</div>';
+      html += '<div class="p-meta">分类：' + (p.category || '-') + '</div>';
+      html += '<div class="p-meta">数量：' + p.quantity + '</div>';
+      if (p.length || p.width || p.height) {
+        html += '<div class="p-meta">尺寸：' + (p.length||'-') + '×' + (p.width||'-') + '×' + (p.height||'-') + ' cm</div>';
+      }
+      html += '<div class="p-meta">入库日期：' + (p.inbound_date || '-') + '</div>';
+      if (p.outbound_date) {
+        html += '<div class="p-meta">出库日期：' + p.outbound_date + '</div>';
+      }
+      html += '</div>';
+    });
+    panelContent.innerHTML = html;
+  }
+  detailPanel.style.display = 'block';
+}
+
+function hideDetail() {
+  detailPanel.style.display = 'none';
+}
+
+document.getElementById('closePanel').addEventListener('click', function(e) {
+  e.stopPropagation();
+  hideDetail();
+});
+
+container.addEventListener('mousemove', function(event) {
+  var rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(cellMeshes, false);
+
+  if (intersects.length > 0) {
+    var obj = intersects[0].object;
+    if (obj.userData && obj.userData.key) {
+      container.style.cursor = 'pointer';
+      showTooltip(event, obj.userData);
+
+      if (hoveredCell !== obj) {
+        hoveredCell = obj;
+        triggerSpread(obj);
+      }
+    } else {
+      container.style.cursor = 'default';
+      hideTooltip();
+      if (hoveredCell) {
+        hoveredCell = null;
+        triggerSpread(null);
+      }
+    }
+  } else {
+    container.style.cursor = 'default';
+    hideTooltip();
+    if (hoveredCell) {
+      hoveredCell = null;
+      triggerSpread(null);
+    }
+  }
+});
+
+function triggerSpread(targetCell) {
+  spreadTargetPositions = {};
+
+  if (!targetCell) {
+    cellMeshes.forEach(function(mesh) {
+      var ud = mesh.userData;
+      if (ud.originalX !== undefined) {
+        spreadTargetPositions[ud.key] = { x: ud.originalX, y: ud.originalY, z: ud.originalZ };
+      }
+    });
+    return;
+  }
+
+  var ud = targetCell.userData;
+  var sameZoneLayerCells = [];
+  cellMeshes.forEach(function(mesh) {
+    if (mesh.userData.zone_code === ud.zone_code && mesh.userData.layer_num === ud.layer_num) {
+      sameZoneLayerCells.push(mesh);
+    }
+  });
+
+  if (sameZoneLayerCells.length <= 1) return;
+
+  var cx = 0, cz = 0;
+  sameZoneLayerCells.forEach(function(mesh) {
+    cx += mesh.userData.originalX;
+    cz += mesh.userData.originalZ;
+  });
+  cx /= sameZoneLayerCells.length;
+  cz /= sameZoneLayerCells.length;
+
+  sameZoneLayerCells.forEach(function(mesh) {
+    var o = mesh.userData;
+    var dx = o.originalX - cx;
+    var dz = o.originalZ - cz;
+    spreadTargetPositions[o.key] = {
+      x: cx + dx * SPREAD_FACTOR,
+      y: o.originalY,
+      z: cz + dz * SPREAD_FACTOR
+    };
+  });
+}
+
+container.addEventListener('click', function(event) {
+  if (event.target.closest('#searchBar') || event.target.closest('#detailPanel')) return;
+
+  var rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(cellMeshes, false);
+
+  if (intersects.length > 0) {
+    var obj = intersects[0].object;
+    if (obj.userData && obj.userData.key) {
+      hoveredCell = null;
+      triggerSpread(null);
+      showDetail(obj.userData);
+    }
+  }
+});
+
+function stopBlink() {
+  if (blinkInterval) {
+    clearInterval(blinkInterval);
+    blinkInterval = null;
+  }
+  if (highlightedCell) {
+    highlightedCell.material.color.setHex(highlightedCell.userData.originalColor);
+    highlightedCell.material.opacity = 0.85;
+    highlightedCell = null;
+  }
+}
+
+function flyToTarget(targetMesh) {
+  var tx = targetMesh.userData.originalX;
+  var ty = targetMesh.userData.originalY;
+  var tz = targetMesh.userData.originalZ;
+
+  stopBlink();
+  highlightedCell = targetMesh;
+  highlightedCell.material.color.setHex(0xf1c40f);
+  highlightedCell.material.opacity = 1;
+
+  blinkInterval = setInterval(function() {
+    if (!highlightedCell) return;
+    var currentColor = highlightedCell.material.color.getHex();
+    if (currentColor === 0xf1c40f) {
+      highlightedCell.material.color.setHex(highlightedCell.userData.originalColor);
+    } else {
+      highlightedCell.material.color.setHex(0xf1c40f);
+    }
+  }, 400);
+
+  var startTarget = controls.target.clone();
+  var startCamera = camera.position.clone();
+  var endTarget = new THREE.Vector3(tx, ty, tz);
+  var dist = 3;
+  var endCamera = new THREE.Vector3(tx + dist, ty + dist, tz + dist);
+
+  var startTime = Date.now();
+  var duration = 1200;
+
+  function animateFly() {
+    var elapsed = Date.now() - startTime;
+    var t = Math.min(elapsed / duration, 1);
+    t = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    controls.target.lerpVectors(startTarget, endTarget, t);
+    camera.position.lerpVectors(startCamera, endCamera, t);
+    if (t < 1) {
+      requestAnimationFrame(animateFly);
+    }
+  }
+  animateFly();
+
+  showDetail(targetMesh.userData);
+}
+
+function hideSearchDropdown() {
+  var dd = document.getElementById('searchDropdown');
+  dd.style.display = 'none';
+}
+
+function locateByCode(code) {
+  if (!code) return;
+
+  fetch('/api/products/' + encodeURIComponent(code))
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.success) {
+        locateByName(code);
+        return;
+      }
+      var p = data.data;
+      var targetKey = p.zone_code + '-' + p.row_num + '-' + p.col_num + '-' + p.layer_num;
+      var targetMesh = null;
+      cellMeshes.forEach(function(mesh) {
+        if (mesh.userData.key === targetKey) { targetMesh = mesh; }
+      });
+      if (targetMesh) {
+        hideSearchDropdown();
+        flyToTarget(targetMesh);
+      } else {
+        alert('未找到商品对应的货格');
+      }
+    })
+    .catch(function(err) {
+      locateByName(code);
+    });
+}
+
+function locateByName(query) {
+  if (!query) return;
+
+  fetch('/api/products?name=' + encodeURIComponent(query) + '&limit=10')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.success || !data.data || data.data.length === 0) {
+        alert('未找到匹配的商品：' + query);
+        return;
+      }
+
+      if (data.data.length === 1) {
+        var p = data.data[0];
+        var targetKey = p.zone_code + '-' + p.row_num + '-' + p.col_num + '-' + p.layer_num;
+        var targetMesh = null;
+        cellMeshes.forEach(function(mesh) {
+          if (mesh.userData.key === targetKey) { targetMesh = mesh; }
+        });
+        if (targetMesh) {
+          hideSearchDropdown();
+          flyToTarget(targetMesh);
+        } else {
+          alert('未找到商品对应的货格');
+        }
+        return;
+      }
+
+      var dd = document.getElementById('searchDropdown');
+      var html = '';
+      data.data.forEach(function(p) {
+        var statusText = p.status === 'in_stock' ? '在库' : '已出库';
+        html += '<div class="drop-item" data-code="' + p.code + '">';
+        html += '<div class="d-code">' + p.code + '</div>';
+        html += '<div class="d-meta">' + p.name + ' | ' + (p.Zone ? p.Zone.code : p.zone_code) + '区 排' + p.row_num + '列' + p.col_num + '层' + p.layer_num + ' | ' + statusText + '</div>';
+        html += '</div>';
+      });
+      dd.innerHTML = html;
+      dd.style.display = 'block';
+
+      dd.querySelectorAll('.drop-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          var c = this.getAttribute('data-code');
+          hideSearchDropdown();
+          document.getElementById('locateCode').value = c;
+          locateByCode(c);
+        });
+      });
+    })
+    .catch(function(err) {
+      alert('查询失败：' + err.message);
+    });
+}
+
+function locateProduct(query) {
+  if (!query) return;
+  var isCodePattern = /^[A-W]-\d/.test(query);
+  if (isCodePattern) {
+    locateByCode(query);
+  } else {
+    locateByName(query);
+  }
+}
+
+document.getElementById('locateBtn').addEventListener('click', function() {
+  var query = document.getElementById('locateCode').value.trim();
+  if (query) {
+    locateProduct(query);
+  }
+});
+
+document.getElementById('locateCode').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var query = this.value.trim();
+    if (query) {
+      locateProduct(query);
+    }
+  }
+});
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#searchBar')) {
+    hideSearchDropdown();
+  }
+});
+
+document.getElementById('resetViewBtn').addEventListener('click', function() {
+  stopBlink();
+  hideDetail();
+  controls.target.set(10, 0, 8);
+  camera.position.set(25, 20, 30);
+  camera.lookAt(10, 0, 8);
+  controls.update();
+});
+
+window.addEventListener('resize', function() {
+  var w = container.clientWidth;
+  var h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+});
+
+fetch('/api/warehouse/layout')
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    renderShelves(data.zones, data.products, data.config);
+  })
+  .catch(function(err) {
+    console.error('加载仓库数据失败:', err);
+  });
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+
+  if (pathAnimationActive) {
+    updatePathAnimation();
+  }
+
+  cellMeshes.forEach(function(mesh) {
+    var ud = mesh.userData;
+    if (!ud.key) return;
+    var target = spreadTargetPositions[ud.key];
+    if (!target) return;
+    var dx = target.x - mesh.position.x;
+    var dy = target.y - mesh.position.y;
+    var dz = target.z - mesh.position.z;
+    var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 0.001) {
+      mesh.position.set(target.x, target.y, target.z);
+    } else {
+      mesh.position.x += dx * LERP_SPEED;
+      mesh.position.y += dy * LERP_SPEED;
+      mesh.position.z += dz * LERP_SPEED;
+    }
+  });
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+animate();
+
+var params = new URLSearchParams(window.location.search);
+var locateCode = params.get('locate');
+if (locateCode) {
+  setTimeout(function() {
+    locateProduct(locateCode);
+  }, 800);
+}
+
+var pathData = null;
+var pathLine = null;
+var pathDot = null;
+var pathDotIndex = 0;
+var pathDotSpeed = 0.02;
+var pathDotProgress = 0;
+var pathMarkers = [];
+var pathAnimationActive = false;
+
+var batchId = new URLSearchParams(window.location.search).get('pathfind');
+if (batchId) {
+  loadPathData(batchId);
+}
+
+function loadPathData(bid) {
+  fetch('/api/outbound/pathfind/' + encodeURIComponent(bid))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      console.log('[PathData] 加载路径数据:', data);
+      if (data.success && data.worldPath && data.worldPath.fullPath && data.worldPath.fullPath.length > 0) {
+        pathData = data;
+        startPathAnimation();
+      } else {
+        console.warn('[PathData] 路径数据不完整或无可达路径:', data);
+      }
+    })
+    .catch(function(err) {
+      console.error('加载路径数据失败:', err);
+    });
+}
+
+function startPathAnimation() {
+  clearPathVisuals();
+
+  var points = [];
+  pathData.worldPath.fullPath.forEach(function(p) {
+    points.push(new THREE.Vector3(p.x, 0.1, p.z));
+  });
+
+  var curve = new THREE.CatmullRomCurve3(points);
+  var tubePoints = curve.getPoints(points.length * 2);
+  var lineGeo = new THREE.BufferGeometry().setFromPoints(tubePoints);
+
+  var lineMat = new THREE.LineBasicMaterial({
+    color: 0x00d4ff,
+    transparent: true,
+    opacity: 0.8,
+    linewidth: 2
+  });
+
+  pathLine = new THREE.Line(lineGeo, lineMat);
+  scene.add(pathLine);
+
+  var dotGeo = new THREE.SphereGeometry(0.3, 16, 16);
+  var dotMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.8 });
+  pathDot = new THREE.Mesh(dotGeo, dotMat);
+  scene.add(pathDot);
+
+  if (pathData.targetCells && pathData.order) {
+    pathData.order.forEach(function(item, idx) {
+      if (item.unreachable) return;
+      var cell = pathData.targetCells.find(function(t) {
+        return t.zone_code === item.zone_code && t.row_num === item.row_num && t.col_num === item.col_num;
+      });
+      if (!cell) return;
+
+      var labelDiv = document.createElement('div');
+      labelDiv.textContent = '' + (idx + 1);
+      labelDiv.style.cssText = 'background:#00ff88;color:#000;padding:2px 8px;border-radius:12px;font-weight:bold;font-size:14px;';
+      var label = new CSS2DObject(labelDiv);
+      label.position.set(cell.worldX, 1.5, cell.worldZ);
+      scene.add(label);
+      pathMarkers.push(label);
+
+      cellMeshes.forEach(function(mesh) {
+        var ud = mesh.userData;
+        if (ud.zone_code === cell.zone_code && ud.row_num === cell.row_num && ud.col_num === cell.col_num) {
+          mesh.material.color.setHex(0x00ff88);
+          mesh.material.opacity = 1.0;
+          mesh.material.emissive = new THREE.Color(0x00ff44);
+          mesh.material.emissiveIntensity = 0.5;
+          pathMarkers.push(mesh);
+        }
+      });
+    });
+  }
+
+  pathAnimationActive = true;
+  pathDotProgress = 0;
+}
+
+function updatePathAnimation() {
+  if (!pathAnimationActive || !pathLine || !pathDot || !pathData) return;
+
+  pathDotProgress += pathDotSpeed;
+  if (pathDotProgress > 1) pathDotProgress = 0;
+
+  var points = pathData.worldPath.fullPath;
+  var totalLength = 0;
+  var segLengths = [];
+  for (var i = 1; i < points.length; i++) {
+    var dx = points[i].x - points[i-1].x;
+    var dz = points[i].z - points[i-1].z;
+    var len = Math.sqrt(dx * dx + dz * dz);
+    segLengths.push(len);
+    totalLength += len;
+  }
+
+  var targetDist = pathDotProgress * totalLength;
+  var curDist = 0;
+  var pos = null;
+  for (var i = 0; i < segLengths.length; i++) {
+    if (curDist + segLengths[i] >= targetDist) {
+      var t = (targetDist - curDist) / segLengths[i];
+      pos = {
+        x: points[i].x + (points[i+1].x - points[i].x) * t,
+        z: points[i].z + (points[i+1].z - points[i].z) * t
+      };
+      break;
+    }
+    curDist += segLengths[i];
+  }
+  if (!pos) {
+    pos = points[points.length - 1];
+    pathDotProgress = 1;
+  }
+
+  pathDot.position.set(pos.x, 0.5, pos.z);
+}
+
+function clearPathVisuals() {
+  if (pathLine) { scene.remove(pathLine); pathLine = null; }
+  if (pathDot) { scene.remove(pathDot); pathDot = null; }
+  pathMarkers.forEach(function(m) {
+    if (m.isCSS2DObject) scene.remove(m);
+    else if (m.isMesh && m.userData && m.userData.originalColor !== undefined) {
+      m.material.color.setHex(m.userData.originalColor);
+      m.material.opacity = 0.85;
+      m.material.emissive = new THREE.Color(0x000000);
+      m.material.emissiveIntensity = 0;
+    }
+  });
+  pathMarkers = [];
+  pathAnimationActive = false;
+}
+</script>
+

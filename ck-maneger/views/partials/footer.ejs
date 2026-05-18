@@ -1,0 +1,22 @@
+<footer style="text-align:center; padding:20px; color:var(--text-muted, #64748b); font-size:0.9em; margin-top:40px; background:var(--bg-primary, #0a0e1a); border-top:1px solid var(--border-color, rgba(0,212,255,0.15)); box-shadow:0 -1px 12px rgba(0,212,255,0.06); position:relative; letter-spacing:0.05em;">
+  <style>
+    footer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent, #00d4ff), transparent);
+      animation: footerPulse 3s ease-in-out infinite;
+    }
+    @keyframes footerPulse {
+      0%, 100% { opacity: 0.4; width: 120px; }
+      50% { opacity: 1; width: 200px; }
+    }
+  </style>
+  &copy; 2026 三维仓库管理系统
+</footer>
+</body>
+</html>

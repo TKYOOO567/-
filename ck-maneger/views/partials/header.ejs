@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三维仓库管理系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .navbar {
+      background: var(--bg-primary);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      box-shadow: 0 1px 0 var(--border-color), 0 2px 12px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+    .navbar::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      box-shadow: 0 0 8px var(--accent-glow), 0 0 20px var(--accent-glow);
+    }
+    .navbar .brand {
+      color: var(--accent);
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-right: 24px;
+      white-space: nowrap;
+      text-shadow: 0 0 10px var(--accent-glow), 0 0 20px rgba(0, 212, 255, 0.15);
+      letter-spacing: 0.5px;
+    }
+    .navbar a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 4px;
+      transition: color 0.3s, background 0.3s, box-shadow 0.3s, text-shadow 0.3s;
+      font-size: 0.95em;
+      position: relative;
+    }
+    .navbar a:hover {
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.08);
+      text-shadow: 0 0 8px var(--accent-glow);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.1), inset 0 0 12px rgba(0, 212, 255, 0.05);
+    }
+    .navbar a.active {
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.12);
+      box-shadow: 0 0 12px var(--accent-glow), inset 0 0 12px rgba(0, 212, 255, 0.06);
+      text-shadow: 0 0 8px var(--accent-glow);
+    }
+    .navbar a.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent-glow), 0 0 12px var(--accent-glow);
+      border-radius: 2px;
+    }
+    .navbar .nav-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .navbar .user-info {
+      color: var(--text-primary);
+      font-size: 0.9em;
+      letter-spacing: 0.3px;
+    }
+    .navbar .btn-logout {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      text-decoration: none;
+      transition: background 0.3s, box-shadow 0.3s, border-color 0.3s, color 0.3s;
+    }
+    .navbar .btn-logout:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+    .navbar .nav-links {
+      display: flex;
+      gap: 2px;
+    }
+    .view-as-bar {
+      background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+      border-bottom: 1px solid rgba(245,158,11,0.3);
+      color: #f59e0b;
+      padding: 6px 24px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .view-as-bar strong {
+      color: #fbbf24;
+    }
+    .view-as-bar button {
+      background: rgba(245,158,11,0.2);
+      border: 1px solid rgba(245,158,11,0.4);
+      color: #fbbf24;
+      padding: 3px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .view-as-bar button:hover {
+      background: rgba(245,158,11,0.35);
+    }
+  </style>
+</head>
+<body>
+  <% if (user && user.role === 'admin' && viewAs) { %>
+  <div class="view-as-bar">
+    <span>当前正以管理员身份查看用户 <strong><%= viewAs %></strong> 的仓库数据</span>
+    <button type="button" onclick="exitViewAs()">退出用户视角</button>
+  </div>
+  <script>
+    function exitViewAs() {
+      fetch('/api/admin/exit-view', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { if (d.success) location.reload(); })
+        .catch(function() { location.reload(); });
+    }
+  </script>
+  <% } %>
+  <nav class="navbar">
+    <span class="brand">&#x1f4e6; 三维仓库管理系统</span>
+    <% if (user) { %>
+    <div class="nav-links">
+      <a href="/">首页</a>
+      <a href="/inbound">入库</a>
+      <a href="/outbound">出库</a>
+      <a href="/products">商品查询</a>
+      <a href="/warehouse">3D仓库图</a>
+      <% if (user.role === 'admin') { %>
+      <a href="/config">仓库配置</a>
+      <a href="/admin/users">用户管理</a>
+      <% } %>
+    </div>
+    <div class="nav-right">
+      <span class="user-info"><%= user.username %> (<%= user.role === 'admin' ? '管理员' : '用户' %>)</span>
+      <a href="/logout" class="btn-logout">登出</a>
+    </div>
+    <% } %>
+  </nav>

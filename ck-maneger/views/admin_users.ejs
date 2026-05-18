@@ -1,0 +1,606 @@
+<%- include('partials/header') %>
+
+<style>
+.card-create-user {
+  margin-bottom: 20px;
+}
+.zone-section-title {
+  margin-top: 16px;
+}
+.add-zone-btn {
+  margin-top: 8px;
+}
+.create-user-actions {
+  margin-top: 16px;
+}
+.required-mark {
+  color: var(--danger);
+}
+.no-users-cell {
+  text-align: center;
+  color: var(--text-muted);
+}
+.zone-config-row {
+  display: grid;
+  grid-template-columns: 40px 80px 38px 38px 38px 50px 50px 50px 40px;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  animation: slideUp 0.3s ease;
+  align-items: end;
+}
+.zone-config-row .form-group {
+  margin-bottom: 0;
+}
+.zone-config-row .form-group label {
+  font-size: 0.7em;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.zone-config-row input {
+  padding: 2px 4px;
+  font-size: 0.78em;
+  text-align: center;
+  min-width: 0;
+}
+.zone-config-row input[type="number"] {
+  -moz-appearance: textfield;
+}
+.zone-config-row input[type="number"]::-webkit-inner-spin-button,
+.zone-config-row input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+  height: 16px;
+}
+.zone-config-row .del-zone-btn {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.card-list-users {
+  animation: slideUp 0.5s ease 0.15s both;
+}
+.action-btns {
+  display: flex;
+  gap: 8px;
+}
+.btn-edit {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--info);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-edit:hover {
+  background: rgba(59, 130, 246, 0.22);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+.btn-delete {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active {
+  display: flex;
+}
+.modal {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  animation: slideUp 0.3s ease;
+}
+.modal h2 {
+  margin-bottom: 20px;
+  color: var(--accent);
+}
+.modal .section-title {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 20px;
+  margin-bottom: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+.confirm-text {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.8;
+}
+.confirm-text strong {
+  color: var(--danger);
+}
+.btn-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-glow);
+}
+.edit-zone-row {
+  display: grid;
+  grid-template-columns: 40px 80px 38px 38px 38px 50px 50px 50px 40px;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  animation: slideUp 0.2s ease;
+  align-items: end;
+}
+.edit-zone-row .form-group {
+  margin-bottom: 0;
+}
+.edit-zone-row .form-group label {
+  font-size: 0.7em;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.edit-zone-row input {
+  padding: 2px 4px;
+  font-size: 0.78em;
+  text-align: center;
+  min-width: 0;
+}
+.edit-zone-row input[type="number"] {
+  -moz-appearance: textfield;
+}
+.edit-zone-row input[type="number"]::-webkit-inner-spin-button,
+.edit-zone-row input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+  height: 16px;
+}
+.edit-zone-row .del-zone-btn {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+</style>
+
+<div class="container">
+  <h1>用户管理</h1>
+  <div id="alertArea"></div>
+
+  <div class="card card-create-user">
+    <h2>创建用户</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="newUsername">用户名 <span class="required-mark">*</span></label>
+        <input type="text" id="newUsername" placeholder="登录用户名">
+      </div>
+      <div class="form-group">
+        <label for="newPassword">密码 <span class="required-mark">*</span></label>
+        <input type="password" id="newPassword" placeholder="登录密码">
+      </div>
+    </div>
+
+    <h3 class="zone-section-title">仓库区域配置</h3>
+    <div id="zoneConfigContainer"></div>
+    <button type="button" class="btn btn-secondary add-zone-btn" id="addZoneBtn">+ 添加区域</button>
+    <div class="create-user-actions">
+      <button type="button" class="btn btn-primary" id="createUserBtn">创建用户并初始化仓库</button>
+    </div>
+  </div>
+
+  <div class="card card-list-users">
+    <h2>已创建用户</h2>
+    <table>
+      <thead>
+        <tr><th>用户名</th><th>角色</th><th>操作</th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function(u) { %>
+        <tr>
+          <td><strong><%= u.username %></strong></td>
+          <td>普通用户</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn btn-secondary view-user-btn" data-username="<%= u.username %>">查看仓库</button>
+              <button class="btn-edit edit-user-btn" data-username="<%= u.username %>">编辑</button>
+              <button class="btn-delete delete-user-btn" data-username="<%= u.username %>">删除</button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (users.length === 0) { %>
+        <tr><td colspan="3" class="no-users-cell">暂无用户</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h2>编辑用户：<span id="editUsername"></span></h2>
+    <div id="editAlertArea"></div>
+
+    <div class="form-group">
+      <label for="editPassword">新密码（留空则不修改）</label>
+      <input type="password" id="editPassword" placeholder="输入新密码">
+    </div>
+
+    <div class="section-title">仓库区域配置</div>
+    <div id="editZoneContainer"></div>
+    <button type="button" class="btn btn-secondary" id="editAddZoneBtn" style="margin-top:8px;">+ 添加区域</button>
+
+    <div class="section-title">仓库整体尺寸</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editWhWidth">仓库宽度 (m)</label>
+        <input type="number" id="editWhWidth" step="0.1" placeholder="自动">
+      </div>
+      <div class="form-group">
+        <label for="editWhHeight">仓库高度 (m)</label>
+        <input type="number" id="editWhHeight" step="0.1" placeholder="自动">
+      </div>
+      <div class="form-group">
+        <label for="editWhDepth">仓库深度 (m)</label>
+        <input type="number" id="editWhDepth" step="0.1" placeholder="自动">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" onclick="closeEditModal()">取消</button>
+      <button type="button" class="btn btn-primary" id="saveEditBtn">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:440px;">
+    <h2>确认删除</h2>
+    <div class="confirm-text">
+      确定要删除用户 <strong id="deleteUsername"></strong> 吗？<br>
+      此操作将同时删除该用户的所有仓库数据，<strong>不可恢复</strong>。
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" onclick="closeDeleteModal()">取消</button>
+      <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showAlert(msg, type) {
+  var area = document.getElementById('alertArea');
+  area.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+}
+
+function showEditAlert(msg, type) {
+  var area = document.getElementById('editAlertArea');
+  area.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+}
+
+// ==================== 创建用户 ====================
+var zoneIndex = 0;
+function addZoneRow(zoneData) {
+  zoneData = zoneData || {};
+  var container = document.getElementById('zoneConfigContainer');
+  var div = document.createElement('div');
+  div.className = 'form-row zone-config-row';
+  div.innerHTML =
+    '<div class="form-group" style="flex:0.5;"><label>编号</label><input type="text" class="z-code" placeholder="A" value="' + (zoneData.code || '') + '"></div>' +
+    '<div class="form-group" style="flex:1;"><label>名称</label><input type="text" class="z-name" placeholder="A区" value="' + (zoneData.name || '') + '"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>排</label><input type="number" class="z-rows" value="' + (zoneData.rows || 3) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>列</label><input type="number" class="z-cols" value="' + (zoneData.cols || 5) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>层</label><input type="number" class="z-layers" value="' + (zoneData.layers || 4) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>宽(m)</label><input type="number" class="z-cw" value="' + (zoneData.cell_width || 1) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>高(m)</label><input type="number" class="z-ch" value="' + (zoneData.cell_height || 0.8) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>深(m)</label><input type="number" class="z-cd" value="' + (zoneData.cell_depth || 1) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.3;"><label>&nbsp;</label><button type="button" class="btn del-zone-btn">删除</button></div>';
+  container.appendChild(div);
+  div.querySelector('.del-zone-btn').addEventListener('click', function() { div.remove(); });
+}
+
+document.getElementById('addZoneBtn').addEventListener('click', function() { addZoneRow(); });
+
+document.getElementById('createUserBtn').addEventListener('click', function() {
+  var username = document.getElementById('newUsername').value.trim();
+  var password = document.getElementById('newPassword').value;
+  if (!username || !password) {
+    showAlert('用户名和密码不能为空', 'error'); return;
+  }
+  var zones = [];
+  document.querySelectorAll('#zoneConfigContainer .form-row').forEach(function(row) {
+    var code = row.querySelector('.z-code').value.trim();
+    var name = row.querySelector('.z-name').value.trim();
+    if (!code) return;
+    zones.push({
+      code: code,
+      name: name || (code + '区'),
+      rows: parseInt(row.querySelector('.z-rows').value) || 3,
+      cols: parseInt(row.querySelector('.z-cols').value) || 5,
+      layers: parseInt(row.querySelector('.z-layers').value) || 4,
+      cell_width: parseFloat(row.querySelector('.z-cw').value) || 1,
+      cell_height: parseFloat(row.querySelector('.z-ch').value) || 0.8,
+      cell_depth: parseFloat(row.querySelector('.z-cd').value) || 1,
+      pos_x: 0,
+      pos_z: 0
+    });
+  });
+
+  fetch('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: username, password: password, zones: zones })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        showAlert('用户 ' + username + ' 创建成功！', 'success');
+        setTimeout(function() { location.reload(); }, 1000);
+      } else {
+        showAlert(d.error, 'error');
+      }
+    })
+    .catch(function() { showAlert('网络错误', 'error'); });
+});
+
+// ==================== 查看仓库 ====================
+document.querySelectorAll('.view-user-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var uname = this.getAttribute('data-username');
+    fetch('/api/admin/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUser: uname })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.success) {
+          window.location.href = '/warehouse';
+        } else {
+          showAlert(d.error, 'error');
+        }
+      })
+      .catch(function() { showAlert('网络错误', 'error'); });
+  });
+});
+
+// ==================== 编辑用户 ====================
+var editTargetUser = '';
+var editZones = [];
+
+function addEditZoneRow(zoneData) {
+  zoneData = zoneData || {};
+  var container = document.getElementById('editZoneContainer');
+  var div = document.createElement('div');
+  div.className = 'form-row edit-zone-row';
+  div.innerHTML =
+    '<div class="form-group" style="flex:0.5;"><label>编号</label><input type="text" class="ez-code" placeholder="A" value="' + (zoneData.code || '') + '"></div>' +
+    '<div class="form-group" style="flex:1;"><label>名称</label><input type="text" class="ez-name" placeholder="A区" value="' + (zoneData.name || '') + '"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>排</label><input type="number" class="ez-rows" value="' + (zoneData.rows || 3) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>列</label><input type="number" class="ez-cols" value="' + (zoneData.cols || 5) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>层</label><input type="number" class="ez-layers" value="' + (zoneData.layers || 4) + '" min="1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>宽(m)</label><input type="number" class="ez-cw" value="' + (zoneData.cell_width || 1) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>高(m)</label><input type="number" class="ez-ch" value="' + (zoneData.cell_height || 0.8) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.5;"><label>深(m)</label><input type="number" class="ez-cd" value="' + (zoneData.cell_depth || 1) + '" step="0.1" min="0.1"></div>' +
+    '<div class="form-group" style="flex:0.3;"><label>&nbsp;</label><button type="button" class="btn del-zone-btn">删除</button></div>';
+  container.appendChild(div);
+  div.querySelector('.del-zone-btn').addEventListener('click', function() { div.remove(); });
+}
+
+document.getElementById('editAddZoneBtn').addEventListener('click', function() { addEditZoneRow(); });
+
+function openEditModal(username) {
+  editTargetUser = username;
+  document.getElementById('editUsername').textContent = username;
+  document.getElementById('editPassword').value = '';
+  document.getElementById('editWhWidth').value = '';
+  document.getElementById('editWhHeight').value = '';
+  document.getElementById('editWhDepth').value = '';
+  document.getElementById('editZoneContainer').innerHTML = '';
+  document.getElementById('editAlertArea').innerHTML = '';
+
+  fetch('/api/admin/layout?targetUser=' + encodeURIComponent(username))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.zones && data.zones.length > 0) {
+        data.zones.forEach(function(z) { addEditZoneRow(z); });
+      }
+      if (data.config) {
+        if (data.config.warehouse_width) document.getElementById('editWhWidth').value = data.config.warehouse_width;
+        if (data.config.warehouse_height) document.getElementById('editWhHeight').value = data.config.warehouse_height;
+        if (data.config.warehouse_depth) document.getElementById('editWhDepth').value = data.config.warehouse_depth;
+      }
+    })
+    .catch(function() {});
+
+  document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('active');
+}
+
+document.getElementById('saveEditBtn').addEventListener('click', function() {
+  var password = document.getElementById('editPassword').value.trim();
+  var whWidth = document.getElementById('editWhWidth').value.trim();
+  var whHeight = document.getElementById('editWhHeight').value.trim();
+  var whDepth = document.getElementById('editWhDepth').value.trim();
+
+  var zones = [];
+  document.querySelectorAll('#editZoneContainer .form-row').forEach(function(row) {
+    var code = row.querySelector('.ez-code').value.trim();
+    var name = row.querySelector('.ez-name').value.trim();
+    if (!code) return;
+    zones.push({
+      code: code,
+      name: name || (code + '区'),
+      rows: parseInt(row.querySelector('.ez-rows').value) || 3,
+      cols: parseInt(row.querySelector('.ez-cols').value) || 5,
+      layers: parseInt(row.querySelector('.ez-layers').value) || 4,
+      cell_width: parseFloat(row.querySelector('.ez-cw').value) || 1,
+      cell_height: parseFloat(row.querySelector('.ez-ch').value) || 0.8,
+      cell_depth: parseFloat(row.querySelector('.ez-cd').value) || 1,
+      pos_x: 0,
+      pos_z: 0
+    });
+  });
+
+  var body = {};
+  if (password) body.password = password;
+  if (zones.length > 0) body.zones = zones;
+  if (whWidth) body.warehouse_width = whWidth;
+  if (whHeight) body.warehouse_height = whHeight;
+  if (whDepth) body.warehouse_depth = whDepth;
+
+  if (!password && zones.length === 0 && !whWidth && !whHeight && !whDepth) {
+    showEditAlert('请至少填写一项要修改的内容', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('saveEditBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  fetch('/api/admin/users/' + encodeURIComponent(editTargetUser), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.disabled = false;
+      btn.textContent = '保存修改';
+      if (d.success) {
+        showEditAlert(d.message || '修改成功', 'success');
+        setTimeout(function() { location.reload(); }, 1200);
+      } else {
+        showEditAlert(d.error, 'error');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '保存修改';
+      showEditAlert('网络错误', 'error');
+    });
+});
+
+document.querySelectorAll('.edit-user-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    openEditModal(this.getAttribute('data-username'));
+  });
+});
+
+// ==================== 删除用户 ====================
+var deleteTargetUser = '';
+
+function openDeleteModal(username) {
+  deleteTargetUser = username;
+  document.getElementById('deleteUsername').textContent = username;
+  document.getElementById('deleteModal').classList.add('active');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('active');
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = '删除中...';
+
+  fetch('/api/admin/users/' + encodeURIComponent(deleteTargetUser), {
+    method: 'DELETE'
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.disabled = false;
+      btn.textContent = '确认删除';
+      if (d.success) {
+        closeDeleteModal();
+        showAlert('用户 ' + deleteTargetUser + ' 已删除', 'success');
+        setTimeout(function() { location.reload(); }, 1000);
+      } else {
+        closeDeleteModal();
+        showAlert(d.error, 'error');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '确认删除';
+      closeDeleteModal();
+      showAlert('网络错误', 'error');
+    });
+});
+
+document.querySelectorAll('.delete-user-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    openDeleteModal(this.getAttribute('data-username'));
+  });
+});
+</script>
+
+<%- include('partials/footer') %>

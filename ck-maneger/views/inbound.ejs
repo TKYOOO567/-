@@ -1,0 +1,956 @@
+<%- include('partials/header') %>
+
+<style>
+.inbound-card {
+  margin-bottom: 0;
+}
+
+.tab-container {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(0, 212, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.08);
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.25s, border-color 0.25s, text-shadow 0.25s;
+}
+
+.tab-btn:hover {
+  color: #94a3b8;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+.tab-btn.active {
+  border-bottom: 3px solid #00d4ff;
+  color: #00d4ff;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+}
+
+.required-mark {
+  color: #ff4757;
+}
+
+.form-actions {
+  margin-top: 20px;
+}
+
+.btn-reset-space {
+  margin-left: 8px;
+}
+
+.excel-section {
+  margin-bottom: 16px;
+}
+
+.excel-hint {
+  margin-left: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.excel-upload-row {
+  margin-top: 12px;
+}
+
+.excel-result {
+  margin-top: 16px;
+}
+
+.error-cell {
+  color: #ff4757;
+}
+
+.success-cell {
+  color: #00d4ff;
+}
+
+.ai-row-invalid {
+  background: rgba(255, 71, 87, 0.08);
+}
+
+.ai-cell-invalid {
+  border: 1px solid #ff4757 !important;
+  background: rgba(255, 71, 87, 0.15) !important;
+}
+
+.ai-error-list {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 71, 87, 0.08);
+  border-left: 3px solid #ff4757;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.ai-error-list ul {
+  margin: 4px 0 0 0;
+  padding-left: 20px;
+}
+
+.result-card {
+  margin-top: 12px;
+}
+
+.auto-assign-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.auto-assign-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #00d4ff;
+  cursor: pointer;
+}
+
+.auto-assign-toggle .form-text {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.auto-assign-fields {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+  max-height: 200px;
+  opacity: 1;
+}
+
+.auto-assign-fields.hidden {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.ai-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 100%;
+}
+
+.ai-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ai-table-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.ai-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 4px;
+}
+
+.ai-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.ai-table-wrapper table {
+  min-width: 820px;
+  margin-bottom: 0;
+  border: none;
+  border-radius: 0;
+}
+</style>
+
+<div class="container">
+  <h1>商品入库</h1>
+
+  <div id="alertArea"></div>
+
+  <div class="card inbound-card">
+    <div class="tab-container">
+      <button class="tab-btn active" data-tab="manual">手动录入</button>
+      <button class="tab-btn" data-tab="excel">Excel导入</button>
+      <button class="tab-btn" data-tab="ai">AI识别</button>
+    </div>
+
+    <div id="tabManual">
+      <form id="inboundForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">商品名称 <span class="required-mark">*</span></label>
+            <input type="text" id="name" name="name" required placeholder="请输入商品名称">
+          </div>
+          <div class="form-group">
+            <label for="category">分类</label>
+            <input type="text" id="category" name="category" placeholder="请输入商品分类">
+          </div>
+          <div class="form-group">
+            <label for="quantity">数量</label>
+            <input type="number" id="quantity" name="quantity" value="1" min="1" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="zone_code">区域 <span class="required-mark">*</span></label>
+            <select id="zone_code" name="zone_code" required>
+              <option value="">-- 请选择区域 --</option>
+              <% zones.forEach(function(z) { %>
+              <option value="<%= z.code %>"><%= z.code %>区 - <%= z.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group auto-assign-toggle">
+            <label>
+              <input type="checkbox" id="auto-assign-toggle" name="auto_assign" value="true">
+              自动分配货位（排/列/层）
+            </label>
+            <small class="form-text">开启后系统将根据商品尺寸或按顺序自动分配排、列、层编号</small>
+          </div>
+        </div>
+
+        <div class="form-row auto-assign-fields" id="manualLocationFields">
+          <div class="form-group">
+            <label for="row_num">排号 <span class="required-mark">*</span></label>
+            <input type="number" id="row_num" name="row_num" min="1" value="1" required>
+            <small class="zone-info" id="rowInfo"></small>
+          </div>
+          <div class="form-group">
+            <label for="col_num">列号 <span class="required-mark">*</span></label>
+            <input type="number" id="col_num" name="col_num" min="1" value="1" required>
+            <small class="zone-info" id="colInfo"></small>
+          </div>
+          <div class="form-group">
+            <label for="layer_num">层号 <span class="required-mark">*</span></label>
+            <input type="number" id="layer_num" name="layer_num" min="1" value="1" required>
+            <small class="zone-info" id="layerInfo"></small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="inbound_length">长 (cm)</label>
+            <input type="number" id="inbound_length" name="length" step="0.1" min="0" placeholder="商品长度">
+          </div>
+          <div class="form-group">
+            <label for="inbound_width">宽 (cm)</label>
+            <input type="number" id="inbound_width" name="width" step="0.1" min="0" placeholder="商品宽度">
+          </div>
+          <div class="form-group">
+            <label for="inbound_height">高 (cm)</label>
+            <input type="number" id="inbound_height" name="height" step="0.1" min="0" placeholder="商品高度">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">确认入库</button>
+          <button type="reset" class="btn btn-secondary btn-reset-space">重置</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="tabExcel" style="display:none;">
+      <div class="excel-section">
+        <a href="/api/inbound/template" class="btn btn-secondary" download>下载入库模板</a>
+        <span class="excel-hint">下载模板后按格式填写，再上传导入</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>选择Excel文件</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+        </div>
+      </div>
+      <div class="excel-upload-row">
+        <button type="button" id="uploadExcelBtn" class="btn btn-primary">上传并导入</button>
+      </div>
+      <div id="excelResult" class="excel-result"></div>
+    </div>
+
+    <div id="tabAi" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:8px;">上传货单图片，AI 自动识别商品信息并入库</p>
+      </div>
+
+      <div id="aiSettingsToggle" style="margin-bottom:12px;cursor:pointer;color:var(--text-muted);font-size:13px;user-select:none;" onclick="toggleAiSettings()">
+        ⚙️ AI 设置 <span id="aiSettingsArrow">▼</span>
+      </div>
+      <div id="aiSettingsPanel" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiApiUrl">API 网址</label>
+            <input type="text" id="aiApiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3/responses">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiApiKey">API Key</label>
+            <input type="password" id="aiApiKey" placeholder="输入 API Key">
+          </div>
+          <div class="form-group">
+            <label for="aiModel">模型名称</label>
+            <input type="text" id="aiModel" placeholder="doubao-seed-2-0-lite-260428">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>选择货单图片</label>
+          <div id="aiDropZone" style="border:2px dashed var(--border-color);border-radius:var(--radius-md);padding:40px;text-align:center;cursor:pointer;transition:border-color 0.3s,background 0.3s;background:var(--bg-input);">
+            <div id="aiDropIcon" style="font-size:2em;margin-bottom:8px;opacity:0.6;">📷</div>
+            <div id="aiDropText" style="color:var(--text-muted);">点击或拖拽图片到此处上传</div>
+            <div id="aiDropHint" style="color:var(--text-muted);font-size:12px;margin-top:4px;">支持 JPG、PNG 格式</div>
+            <input type="file" id="aiImageInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+          </div>
+        </div>
+      </div>
+      <div id="aiPreviewArea" style="display:none;margin-top:12px;text-align:center;">
+        <img id="aiPreviewImg" style="max-width:300px;max-height:200px;border-radius:8px;border:1px solid var(--border-color);">
+      </div>
+      <div style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="aiRecognizeBtn" disabled>开始识别</button>
+        <span id="aiStatus" style="margin-left:12px;color:var(--text-muted);font-size:14px;"></span>
+      </div>
+      <div id="aiResult" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var allZones = <%- JSON.stringify(zones) %>;
+
+(function() {
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      tabBtns.forEach(function(b) {
+        b.classList.remove('active');
+        b.style.borderBottom = '3px solid transparent';
+        b.style.color = '#64748b';
+        b.style.textShadow = 'none';
+      });
+      btn.classList.add('active');
+      btn.style.borderBottom = '3px solid #00d4ff';
+      btn.style.color = '#00d4ff';
+      btn.style.textShadow = '0 0 10px rgba(0, 212, 255, 0.4)';
+
+      var tab = btn.getAttribute('data-tab');
+      document.getElementById('tabManual').style.display = tab === 'manual' ? 'block' : 'none';
+      document.getElementById('tabExcel').style.display = tab === 'excel' ? 'block' : 'none';
+      document.getElementById('tabAi').style.display = tab === 'ai' ? 'block' : 'none';
+    });
+  });
+})();
+
+var aiImageFile = null;
+
+function compressImage(file, maxWidth, quality, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var w = img.width, h = img.height;
+      if (w > maxWidth) {
+        h = Math.round(h * maxWidth / w);
+        w = maxWidth;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) {
+        var compressed = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+        callback(compressed);
+      }, 'image/jpeg', quality);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleAiSettings() {
+  var panel = document.getElementById('aiSettingsPanel');
+  var arrow = document.getElementById('aiSettingsArrow');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    arrow.textContent = '▲';
+  } else {
+    panel.style.display = 'none';
+    arrow.textContent = '▼';
+  }
+}
+
+function loadAiSettings() {
+  var CURRENT_MODEL = 'doubao-seed-2-0-lite-260428';
+  var OLD_MODELS = ['doubao-seed-2-0-pro-260215', 'doubao-seed-1-8-251228'];
+  var CURRENT_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses';
+  var OLD_URLS = [
+    'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    'https://ark.cn-beijing.volces.com/api/v3',
+    'https://ark.cn-beijing.volces.com/api/v3/'
+  ];
+  try {
+    var saved = JSON.parse(localStorage.getItem('aiConfig') || '{}');
+    // 若缓存的是旧 API URL，自动替换为新端点并更新缓存
+    if (saved.apiUrl && OLD_URLS.indexOf(saved.apiUrl) !== -1) {
+      saved.apiUrl = CURRENT_URL;
+      localStorage.setItem('aiConfig', JSON.stringify(saved));
+    }
+    if (saved.apiUrl) document.getElementById('aiApiUrl').value = saved.apiUrl;
+    if (saved.apiKey) document.getElementById('aiApiKey').value = saved.apiKey;
+    // 若缓存的是旧模型名，自动替换为新默认值并更新缓存
+    if (saved.model && OLD_MODELS.indexOf(saved.model) !== -1) {
+      saved.model = CURRENT_MODEL;
+      localStorage.setItem('aiConfig', JSON.stringify(saved));
+    }
+    if (saved.model) document.getElementById('aiModel').value = saved.model;
+  } catch (e) {}
+}
+
+function saveAiSettings() {
+  var cfg = {
+    apiUrl: document.getElementById('aiApiUrl').value.trim(),
+    apiKey: document.getElementById('aiApiKey').value.trim(),
+    model: document.getElementById('aiModel').value.trim()
+  };
+  localStorage.setItem('aiConfig', JSON.stringify(cfg));
+}
+
+document.getElementById('aiApiUrl').addEventListener('change', saveAiSettings);
+document.getElementById('aiApiKey').addEventListener('change', saveAiSettings);
+document.getElementById('aiModel').addEventListener('change', saveAiSettings);
+loadAiSettings();
+
+document.getElementById('aiDropZone').addEventListener('click', function() {
+  document.getElementById('aiImageInput').click();
+});
+
+document.getElementById('aiDropZone').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--accent)';
+  this.style.background = 'var(--bg-hover)';
+});
+
+document.getElementById('aiDropZone').addEventListener('dragleave', function() {
+  this.style.borderColor = 'var(--border-color)';
+  this.style.background = 'var(--bg-input)';
+});
+
+document.getElementById('aiDropZone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--border-color)';
+  this.style.background = 'var(--bg-input)';
+  var file = e.dataTransfer.files[0];
+  if (file) handleAiImage(file);
+});
+
+document.getElementById('aiImageInput').addEventListener('change', function() {
+  var file = this.files[0];
+  if (file) handleAiImage(file);
+});
+
+function handleAiImage(file) {
+  if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+    showAlert('请上传 JPG、PNG 或 WebP 格式的图片', 'error');
+    return;
+  }
+  aiImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('aiPreviewImg').src = e.target.result;
+    document.getElementById('aiPreviewArea').style.display = 'block';
+    document.getElementById('aiRecognizeBtn').disabled = false;
+    document.getElementById('aiDropText').textContent = file.name;
+    document.getElementById('aiDropHint').textContent = '点击重新选择';
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('aiRecognizeBtn').addEventListener('click', function() {
+  var btn = this;
+  if (!aiImageFile) {
+    showAlert('请先上传图片', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '正在压缩...';
+  document.getElementById('aiStatus').textContent = '正在压缩图片，请稍候...';
+
+  compressImage(aiImageFile, 1200, 0.85, function(compressedFile) {
+    document.getElementById('aiStatus').textContent = '正在上传并识别，请稍候...';
+    var formData = new FormData();
+    formData.append('file', compressedFile);
+
+    var aiUrl = document.getElementById('aiApiUrl').value.trim();
+    var aiKey = document.getElementById('aiApiKey').value.trim();
+    var aiModel = document.getElementById('aiModel').value.trim();
+    if (aiUrl) formData.append('aiUrl', aiUrl);
+    if (aiKey) formData.append('aiKey', aiKey);
+    if (aiModel) formData.append('aiModel', aiModel);
+
+    fetch('/api/inbound/ai-recognize', { method: 'POST', body: formData })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = '开始识别';
+        document.getElementById('aiStatus').textContent = '';
+        if (data.success && data.items && data.items.length > 0) {
+          showAiInboundResults(data.items, data.warning);
+        } else {
+          document.getElementById('aiResult').innerHTML = '<div class="alert alert-error">识别失败：' + (data.error || '未能识别到商品信息，请重新上传或手动录入') + '</div>';
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = '开始识别';
+        document.getElementById('aiStatus').textContent = '';
+        document.getElementById('aiResult').innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+      });
+  });
+});
+
+function showAiInboundResults(items, warning) {
+  var html = '<div style="margin-top:12px;">';
+  html += '<div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">识别到 ' + items.length + ' 条商品，请确认后入库</div>';
+  if (warning) {
+    html += '<div class="alert alert-error" style="margin-bottom:10px;">⚠️ ' + escapeHtml(warning) + '</div>';
+  }
+  html += '<div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">提示：分类由 AI 识别，区域由系统按"同类同区"规则自动分配；排/列/层若为空请手动填入。</div>';
+  html += '<div class="form-group auto-assign-toggle" style="margin-bottom: 10px;">';
+  html += '<label><input type="checkbox" id="ai-auto-assign-toggle" checked> 自动分配排/列/层</label>';
+  html += '<small class="form-text">开启后系统将自动分配排、列、层编号，无需手动填写</small>';
+  html += '</div>';
+  html += '<div class="ai-table-wrapper"><table><thead><tr><th>名称</th><th>分类</th><th>区域</th><th>排</th><th>列</th><th>层</th><th>数量</th><th>长</th><th>宽</th><th>高</th></tr></thead><tbody>';
+  items.forEach(function(item, idx) {
+    html += '<tr>';
+    html += '<td><input type="text" class="ai-name" value="' + (item.name || '') + '" style="width:150px;"></td>';
+    html += '<td><input type="text" class="ai-category" value="' + (item.category || '') + '" style="width:120px;"></td>';
+    html += '<td><input type="text" class="ai-zone" value="' + (item.zone_code || '') + '" style="width:50px;"></td>';
+    html += '<td><input type="number" class="ai-row" value="' + (item.row_num || '') + '" min="1" style="width:50px;"></td>';
+    html += '<td><input type="number" class="ai-col" value="' + (item.col_num || '') + '" min="1" style="width:50px;"></td>';
+    html += '<td><input type="number" class="ai-layer" value="' + (item.layer_num || '') + '" min="1" style="width:50px;"></td>';
+    html += '<td><input type="number" class="ai-qty" value="' + (item.quantity || 1) + '" min="1" style="width:60px;"></td>';
+    html += '<td><input type="number" class="ai-length" value="' + (item.length || '') + '" step="0.1" style="width:55px;"></td>';
+    html += '<td><input type="number" class="ai-width" value="' + (item.width || '') + '" step="0.1" style="width:55px;"></td>';
+    html += '<td><input type="number" class="ai-height" value="' + (item.height || '') + '" step="0.1" style="width:55px;"></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div style="margin-top:16px;">';
+  html += '<button type="button" class="btn btn-primary" id="aiConfirmInboundBtn">确认入库 (' + items.length + ' 件)</button>';
+  html += '</div></div>';
+  document.getElementById('aiResult').innerHTML = html;
+
+  // AI自动分配开关切换逻辑
+  var aiAutoToggle = document.getElementById('ai-auto-assign-toggle');
+  function updateAiLocationFields() {
+    var checked = aiAutoToggle.checked;
+    var rowInputs = document.querySelectorAll('#aiResult .ai-row');
+    var colInputs = document.querySelectorAll('#aiResult .ai-col');
+    var layerInputs = document.querySelectorAll('#aiResult .ai-layer');
+    rowInputs.forEach(function(el) {
+      el.disabled = checked;
+      el.placeholder = checked ? '自动分配' : '';
+    });
+    colInputs.forEach(function(el) {
+      el.disabled = checked;
+      el.placeholder = checked ? '自动分配' : '';
+    });
+    layerInputs.forEach(function(el) {
+      el.disabled = checked;
+      el.placeholder = checked ? '自动分配' : '';
+    });
+  }
+  aiAutoToggle.addEventListener('change', updateAiLocationFields);
+  updateAiLocationFields();
+
+  document.getElementById('aiConfirmInboundBtn').addEventListener('click', function() {
+    var rows = document.querySelectorAll('#aiResult tbody tr');
+    var products = [];
+    var errors = [];
+    var rowsWithErrors = [];
+    var aiAutoAssign = document.getElementById('ai-auto-assign-toggle').checked;
+
+    // 清除上次的高亮
+    rows.forEach(function(row) {
+      row.classList.remove('ai-row-invalid');
+      row.querySelectorAll('input').forEach(function(el) { el.classList.remove('ai-cell-invalid'); });
+    });
+
+    rows.forEach(function(row, idx) {
+      var nameInput  = row.querySelector('.ai-name');
+      var zoneInput  = row.querySelector('.ai-zone');
+      var rowInput   = row.querySelector('.ai-row');
+      var colInput   = row.querySelector('.ai-col');
+      var layerInput = row.querySelector('.ai-layer');
+
+      var name      = nameInput.value.trim();
+      var zone_code = zoneInput.value.trim();
+      var rowVal    = rowInput.value.trim();
+      var colVal    = colInput.value.trim();
+      var layerVal  = layerInput.value.trim();
+
+      var rowErrs = [];
+      var invalidCells = [];
+
+      if (!name)      { rowErrs.push('商品名称不能为空');   invalidCells.push(nameInput); }
+      if (!zone_code) { rowErrs.push('区域编码不能为空');   invalidCells.push(zoneInput); }
+
+      // 自动分配模式下不校验排/列/层
+      if (!aiAutoAssign) {
+        if (!rowVal)    { rowErrs.push('排号不能为空');        invalidCells.push(rowInput); }
+        if (!colVal)    { rowErrs.push('列号不能为空');        invalidCells.push(colInput); }
+        if (!layerVal)  { rowErrs.push('层号不能为空');        invalidCells.push(layerInput); }
+      }
+
+      // 区域存在性 + 范围校验（仅当 zone_code 已填，且非自动分配模式）
+      if (zone_code && !aiAutoAssign) {
+        var zone = null;
+        for (var i = 0; i < allZones.length; i++) {
+          if (allZones[i].code === zone_code) { zone = allZones[i]; break; }
+        }
+        if (!zone) {
+          rowErrs.push('区域 "' + zone_code + '" 不存在');
+          invalidCells.push(zoneInput);
+        } else {
+          var r = parseInt(rowVal, 10);
+          var c = parseInt(colVal, 10);
+          var l = parseInt(layerVal, 10);
+          if (rowVal && (isNaN(r) || r < 1 || r > zone.rows))   { rowErrs.push('排号超出范围（1-' + zone.rows + '）');  invalidCells.push(rowInput); }
+          if (colVal && (isNaN(c) || c < 1 || c > zone.cols))   { rowErrs.push('列号超出范围（1-' + zone.cols + '）');  invalidCells.push(colInput); }
+          if (layerVal && (isNaN(l) || l < 1 || l > zone.layers)) { rowErrs.push('层号超出范围（1-' + zone.layers + '）'); invalidCells.push(layerInput); }
+        }
+      }
+
+      if (rowErrs.length > 0) {
+        row.classList.add('ai-row-invalid');
+        invalidCells.forEach(function(el) { el.classList.add('ai-cell-invalid'); });
+        errors.push({ rowIndex: idx + 1, name: name || '(未填)', message: rowErrs.join('；') });
+        rowsWithErrors.push(idx + 1);
+      } else {
+        var product = {
+          name: name,
+          category: row.querySelector('.ai-category').value.trim(),
+          zone_code: zone_code,
+          quantity: parseInt(row.querySelector('.ai-qty').value, 10) || 1,
+          length: parseFloat(row.querySelector('.ai-length').value) || null,
+          width:  parseFloat(row.querySelector('.ai-width').value)  || null,
+          height: parseFloat(row.querySelector('.ai-height').value) || null
+        };
+        if (aiAutoAssign) {
+          product.auto_assign = true;
+          product.row_num = null;
+          product.col_num = null;
+          product.layer_num = null;
+        } else {
+          product.row_num = parseInt(rowVal, 10);
+          product.col_num = parseInt(colVal, 10);
+          product.layer_num = parseInt(layerVal, 10);
+        }
+        products.push(product);
+      }
+    });
+
+    // 渲染错误信息（如果有）
+    var existing = document.getElementById('aiValidationErrors');
+    if (existing) existing.remove();
+    if (errors.length > 0) {
+      var html = '<div id="aiValidationErrors" class="ai-error-list">';
+      html += '<strong>检测到 ' + errors.length + ' 条不合格记录，请修正后再次提交：</strong><ul>';
+      errors.forEach(function(e) {
+        html += '<li>第 ' + e.rowIndex + ' 行【' + escapeHtml(e.name) + '】：' + escapeHtml(e.message) + '</li>';
+      });
+      html += '</ul></div>';
+      document.getElementById('aiResult').insertAdjacentHTML('beforeend', html);
+
+      if (products.length === 0) {
+        showAlert('请先修正标红的字段后再提交', 'error');
+        return;
+      }
+      // 部分通过：让用户选择
+      if (!confirm('有 ' + errors.length + ' 条不合格记录将被跳过，仅提交其余 ' + products.length + ' 条，是否继续？')) {
+        return;
+      }
+    }
+
+    if (products.length === 0) {
+      showAlert('没有可入库的商品', 'error');
+      return;
+    }
+    submitAiInbound(products);
+  });
+}
+
+function submitAiInbound(products) {
+  var successCount = 0;
+  var failures = [];
+  var btn = document.getElementById('aiConfirmInboundBtn');
+  btn.disabled = true;
+  btn.textContent = '入库中...';
+
+  function submitNext(index) {
+    if (index >= products.length) {
+      btn.disabled = false;
+      btn.textContent = '确认入库';
+      var msg = '入库完成！成功 ' + successCount + ' 条';
+      if (failures.length > 0) msg += '，失败 ' + failures.length + ' 条';
+      showAlert(msg, failures.length > 0 ? 'error' : 'success');
+
+      if (failures.length > 0) {
+        var existing = document.getElementById('aiSubmitErrors');
+        if (existing) existing.remove();
+        var html = '<div id="aiSubmitErrors" class="ai-error-list">';
+        html += '<strong>提交失败的记录（' + failures.length + ' 条）：</strong><ul>';
+        failures.forEach(function(f) {
+          html += '<li>【' + escapeHtml(f.name) + '】：' + escapeHtml(f.error) + '</li>';
+        });
+        html += '</ul></div>';
+        document.getElementById('aiResult').insertAdjacentHTML('beforeend', html);
+      } else if (successCount > 0) {
+        document.getElementById('aiResult').innerHTML = '<div class="alert alert-success">全部 ' + successCount + ' 件商品已成功入库！</div>';
+      }
+      return;
+    }
+    var p = products[index];
+    fetch('/api/inbound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    })
+      .then(function(r) { return r.json().then(function(d) { return { status: r.status, body: d }; }); })
+      .then(function(res) {
+        if (res.body && res.body.success) {
+          successCount++;
+        } else {
+          failures.push({ name: p.name, error: (res.body && (res.body.error || res.body.message)) || ('HTTP ' + res.status) });
+        }
+        submitNext(index + 1);
+      })
+      .catch(function(err) {
+        failures.push({ name: p.name, error: '网络错误: ' + (err && err.message ? err.message : '未知') });
+        submitNext(index + 1);
+      });
+  }
+  submitNext(0);
+}
+
+// 通用工具函数
+function showAlert(msg, type) {
+  var area = document.getElementById('alertArea');
+  if (!area) return;
+  var cls = type === 'success' ? 'alert-success' : 'alert-error';
+  area.innerHTML = '<div class="alert ' + cls + '">' + escapeHtml(msg) + '</div>';
+  setTimeout(function() {
+    if (area.firstChild) area.innerHTML = '';
+  }, 6000);
+}
+
+function escapeHtml(text) {
+  if (text == null) return '';
+  var div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+// 手动录入 - 自动分配货位开关
+(function() {
+  var toggle = document.getElementById('auto-assign-toggle');
+  var locationFields = document.getElementById('manualLocationFields');
+  var rowInput = document.getElementById('row_num');
+  var colInput = document.getElementById('col_num');
+  var layerInput = document.getElementById('layer_num');
+
+  function updateManualLocationVisibility() {
+    var checked = toggle.checked;
+    if (checked) {
+      locationFields.classList.add('hidden');
+      rowInput.removeAttribute('required');
+      colInput.removeAttribute('required');
+      layerInput.removeAttribute('required');
+    } else {
+      locationFields.classList.remove('hidden');
+      rowInput.setAttribute('required', 'required');
+      colInput.setAttribute('required', 'required');
+      layerInput.setAttribute('required', 'required');
+    }
+  }
+
+  toggle.addEventListener('change', updateManualLocationVisibility);
+  updateManualLocationVisibility();
+})();
+
+document.getElementById('zone_code').addEventListener('change', function() {
+  var code = this.value;
+  var rowInfo = document.getElementById('rowInfo');
+  var colInfo = document.getElementById('colInfo');
+  var layerInfo = document.getElementById('layerInfo');
+  var rowInput = document.getElementById('row_num');
+  var colInput = document.getElementById('col_num');
+  var layerInput = document.getElementById('layer_num');
+
+  if (!code) {
+    rowInput.max = '';
+    colInput.max = '';
+    layerInput.max = '';
+    rowInfo.textContent = '';
+    colInfo.textContent = '';
+    layerInfo.textContent = '';
+    return;
+  }
+
+  fetch('/api/zones/' + encodeURIComponent(code))
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var z = data.zone;
+        rowInput.max = z.rows;
+        colInput.max = z.cols;
+        layerInput.max = z.layers;
+        rowInfo.textContent = '范围：1-' + z.rows;
+        colInfo.textContent = '范围：1-' + z.cols;
+        layerInfo.textContent = '范围：1-' + z.layers;
+        if (parseInt(rowInput.value) > z.rows) rowInput.value = z.rows;
+        if (parseInt(colInput.value) > z.cols) colInput.value = z.cols;
+        if (parseInt(layerInput.value) > z.layers) layerInput.value = z.layers;
+      }
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+});
+
+document.getElementById('inboundForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  var alertArea = document.getElementById('alertArea');
+  alertArea.innerHTML = '';
+
+  var autoAssign = document.getElementById('auto-assign-toggle').checked;
+
+  var formData = {
+    name: document.getElementById('name').value.trim(),
+    category: document.getElementById('category').value.trim(),
+    zone_code: document.getElementById('zone_code').value,
+    quantity: document.getElementById('quantity').value,
+    length: document.getElementById('inbound_length').value || null,
+    width: document.getElementById('inbound_width').value || null,
+    height: document.getElementById('inbound_height').value || null
+  };
+
+  if (autoAssign) {
+    formData.auto_assign = true;
+    formData.row_num = null;
+    formData.col_num = null;
+    formData.layer_num = null;
+  } else {
+    formData.row_num = document.getElementById('row_num').value;
+    formData.col_num = document.getElementById('col_num').value;
+    formData.layer_num = document.getElementById('layer_num').value;
+  }
+
+  var submitBtn = document.querySelector('#inboundForm button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '提交中...';
+
+  fetch('/api/inbound', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '确认入库';
+
+      if (data.success) {
+        alertArea.innerHTML = '<div class="alert alert-success">入库成功！商品编码：<strong>' + data.product.code + '</strong></div>';
+        document.getElementById('inboundForm').reset();
+        document.getElementById('quantity').value = '1';
+        document.getElementById('row_num').value = '1';
+        document.getElementById('col_num').value = '1';
+        document.getElementById('layer_num').value = '1';
+        document.getElementById('rowInfo').textContent = '';
+        document.getElementById('colInfo').textContent = '';
+        document.getElementById('layerInfo').textContent = '';
+      } else {
+        alertArea.innerHTML = '<div class="alert alert-error">' + data.error + '</div>';
+      }
+    })
+    .catch(function(err) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '确认入库';
+      alertArea.innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+    });
+});
+
+document.getElementById('uploadExcelBtn').addEventListener('click', function() {
+  var fileInput = document.getElementById('excelFile');
+  var resultDiv = document.getElementById('excelResult');
+  var btn = document.getElementById('uploadExcelBtn');
+
+  if (!fileInput.files || !fileInput.files[0]) {
+    resultDiv.innerHTML = '<div class="alert alert-error">请选择Excel文件</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  var formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  fetch('/api/inbound/excel', {
+    method: 'POST',
+    body: formData
+  })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = '上传并导入';
+
+      if (data.success) {
+        var html = '<div class="alert alert-success">导入完成！共 ' + data.total + ' 行，成功 ' + data.successCount + ' 条';
+        if (data.errorCount > 0) {
+          html += '，失败 ' + data.errorCount + ' 条</div>';
+          html += '<div class="card result-card"><table><thead><tr><th>行号</th><th>商品名</th><th>失败原因</th></tr></thead><tbody>';
+          data.errors.forEach(function(e) {
+            html += '<tr><td>' + e.row + '</td><td>' + e.name + '</td><td class="error-cell">' + e.message + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        } else {
+          html += '</div>';
+        }
+        if (data.results && data.results.length > 0) {
+          html += '<div class="card result-card"><table><thead><tr><th>行号</th><th>商品名</th><th>生成编码</th></tr></thead><tbody>';
+          data.results.forEach(function(r) {
+            html += '<tr><td>' + r.row + '</td><td>' + r.name + '</td><td class="success-cell">' + r.code + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+        resultDiv.innerHTML = html;
+        fileInput.value = '';
+      } else {
+        resultDiv.innerHTML = '<div class="alert alert-error">' + (data.error || '导入失败') + '</div>';
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = '上传并导入';
+      resultDiv.innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+    });
+});
+</script>
+
+<%- include('partials/footer') %>

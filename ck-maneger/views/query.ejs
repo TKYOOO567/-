@@ -1,0 +1,262 @@
+<%- include('partials/header') %>
+
+<style>
+  .search-card {
+    background: var(--bg-card, rgba(17, 24, 39, 0.85));
+    border-radius: 8px;
+    padding: 24px;
+    border: 1px solid var(--border-color, rgba(0, 212, 255, 0.15));
+    box-shadow: 0 0 20px var(--accent-glow, rgba(0, 212, 255, 0.3)), inset 0 1px 0 rgba(0, 212, 255, 0.05);
+    margin-bottom: 20px;
+    backdrop-filter: blur(12px);
+  }
+  .badge-in-stock {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: var(--success-bg, rgba(16, 185, 129, 0.12));
+    color: var(--success, #10b981);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+  }
+  .badge-out-stock {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: var(--danger-bg, rgba(239, 68, 68, 0.12));
+    color: var(--danger, #ef4444);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+  }
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+  }
+  .pagination button {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color, rgba(0, 212, 255, 0.15));
+    border-radius: 4px;
+    background: var(--bg-card, rgba(17, 24, 39, 0.85));
+    color: var(--text-primary, #e2e8f0);
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+  }
+  .pagination button:hover:not(:disabled) {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: var(--accent, #00d4ff);
+    color: var(--accent, #00d4ff);
+    box-shadow: 0 0 12px var(--accent-glow, rgba(0, 212, 255, 0.3));
+  }
+  .pagination button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .pagination button.active {
+    background: var(--accent, #00d4ff);
+    color: var(--bg-primary, #0a0e1a);
+    border-color: var(--accent, #00d4ff);
+    font-weight: 600;
+    box-shadow: 0 0 14px var(--accent-glow, rgba(0, 212, 255, 0.3));
+  }
+  .pagination .page-info {
+    padding: 8px 14px;
+    font-size: 0.9em;
+    color: var(--text-muted, #64748b);
+  }
+  .result-count {
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #94a3b8);
+  }
+  .loading-text {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted, #64748b);
+    font-size: 1.1em;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .btn-locate {
+    display: inline-block;
+    padding: 6px 14px;
+    border: 1px solid var(--info, #3b82f6);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--info, #3b82f6);
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  .btn-locate:hover {
+    background: var(--info, #3b82f6);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+  }
+</style>
+
+<div class="container">
+  <h1>商品查询</h1>
+
+  <div class="search-card">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="searchCode">商品编码</label>
+        <input type="text" id="searchCode" placeholder="输入商品编码精确匹配">
+      </div>
+      <div class="form-group">
+        <label for="searchName">商品名称</label>
+        <input type="text" id="searchName" placeholder="输入商品名称模糊搜索">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="searchZone">区域</label>
+        <select id="searchZone">
+          <option value="">全部</option>
+          <% zones.forEach(function(z) { %>
+          <option value="<%= z.code %>"><%= z.code %>区</option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="searchStatus">状态</label>
+        <select id="searchStatus">
+          <option value="">全部</option>
+          <option value="in_stock">在库</option>
+          <option value="out_stock">已出库</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="doSearch(1)">搜索</button>
+  </div>
+
+  <div id="resultArea">
+    <div class="loading-text">点击"搜索"按钮查询商品</div>
+  </div>
+</div>
+
+<script>
+var currentPage = 1;
+var currentParams = {};
+
+function doSearch(page) {
+  currentPage = page;
+  currentParams = {
+    code: document.getElementById('searchCode').value.trim(),
+    name: document.getElementById('searchName').value.trim(),
+    zone: document.getElementById('searchZone').value,
+    status: document.getElementById('searchStatus').value,
+    page: page
+  };
+
+  var queryParts = [];
+  for (var key in currentParams) {
+    if (currentParams[key]) {
+      queryParts.push(encodeURIComponent(key) + '=' + encodeURIComponent(currentParams[key]));
+    }
+  }
+  var queryString = queryParts.join('&');
+
+  document.getElementById('resultArea').innerHTML = '<div class="loading-text">查询中...</div>';
+
+  fetch('/api/products?' + queryString)
+    .then(function(res) { return res.json(); })
+    .then(function(result) {
+      if (!result.success) {
+        document.getElementById('resultArea').innerHTML = '<div class="alert alert-error">查询失败</div>';
+        return;
+      }
+      renderResults(result);
+    })
+    .catch(function() {
+      document.getElementById('resultArea').innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+    });
+}
+
+function renderResults(result) {
+  var html = '';
+
+  html += '<div class="result-count">共 ' + result.total + ' 条结果</div>';
+
+  if (result.data.length === 0) {
+    html += '<div class="loading-text">暂无匹配的商品记录</div>';
+    document.getElementById('resultArea').innerHTML = html;
+    return;
+  }
+
+  html += '<table>';
+  html += '<thead><tr>';
+  html += '<th>商品编码</th>';
+  html += '<th>名称</th>';
+  html += '<th>分类</th>';
+  html += '<th>区域</th>';
+  html += '<th>位置(排-列-层)</th>';
+  html += '<th>数量</th>';
+  html += '<th>状态</th>';
+  html += '<th>入库日期</th>';
+  html += '<th>操作</th>';
+  html += '</tr></thead>';
+  html += '<tbody>';
+
+  result.data.forEach(function(p) {
+    var zoneName = p.Zone ? p.Zone.name : (p.zone_code || '-');
+    var position = (p.row_num || 0) + '-' + (p.col_num || 0) + '-' + (p.layer_num || 0);
+    var statusBadge = p.status === 'in_stock'
+      ? '<span class="badge-in-stock">在库</span>'
+      : '<span class="badge-out-stock">已出库</span>';
+
+    html += '<tr>';
+    html += '<td>' + (p.code || '-') + '</td>';
+    html += '<td>' + (p.name || '-') + '</td>';
+    html += '<td>' + (p.category || '-') + '</td>';
+    html += '<td>' + zoneName + '</td>';
+    html += '<td>' + position + '</td>';
+    html += '<td>' + (p.quantity || 0) + '</td>';
+    html += '<td>' + statusBadge + '</td>';
+    html += '<td>' + (p.inbound_date || '-') + '</td>';
+    html += '<td><a href="/warehouse?locate=' + encodeURIComponent(p.code) + '" class="btn-locate">定位</a></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  html += renderPagination(result);
+
+  document.getElementById('resultArea').innerHTML = html;
+}
+
+function renderPagination(result) {
+  var html = '<div class="pagination">';
+
+  var prevDisabled = result.page <= 1 ? ' disabled' : '';
+  html += '<button' + prevDisabled + ' onclick="doSearch(' + (result.page - 1) + ')">上一页</button>';
+
+  for (var i = 1; i <= result.totalPages; i++) {
+    var activeClass = i === result.page ? ' active' : '';
+    html += '<button class="' + activeClass + '" onclick="doSearch(' + i + ')">' + i + '</button>';
+  }
+
+  var nextDisabled = result.page >= result.totalPages ? ' disabled' : '';
+  html += '<button' + nextDisabled + ' onclick="doSearch(' + (result.page + 1) + ')">下一页</button>';
+
+  html += '<span class="page-info">第 ' + result.page + '/' + result.totalPages + ' 页</span>';
+
+  html += '</div>';
+  return html;
+}
+</script>
+
+<%- include('partials/footer') %>

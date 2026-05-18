@@ -1,0 +1,787 @@
+<%- include('partials/header') %>
+
+<style>
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card {
+  animation: cardSlideIn 0.5s ease-out both;
+}
+
+#codesInput {
+  font-family: 'Courier New', 'Consolas', monospace;
+  letter-spacing: 0.5px;
+  background: rgba(0, 255, 136, 0.03);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#codesInput:focus {
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.1);
+}
+
+#codesInput::placeholder {
+  font-family: inherit;
+  color: rgba(0, 255, 136, 0.25);
+}
+
+#resultArea .alert {
+  animation: alertGlow 2s ease-in-out infinite alternate;
+}
+
+#resultArea .alert-success {
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.15), inset 0 0 12px rgba(0, 255, 136, 0.03);
+}
+
+#resultArea .alert-error {
+  box-shadow: 0 0 12px rgba(255, 51, 102, 0.15), inset 0 0 12px rgba(255, 51, 102, 0.03);
+}
+
+@keyframes alertGlow {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.08);
+  }
+}
+
+.tab-container {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(0, 212, 255, 0.15);
+  box-shadow: 0 4px 8px rgba(0, 212, 255, 0.06);
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-muted);
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.3s, border-color 0.3s, text-shadow 0.3s;
+}
+
+.tab-btn:hover {
+  color: var(--text-secondary);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+.tab-btn.active {
+  border-bottom: 3px solid var(--accent);
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+
+.excel-hint {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.btn-reset-space {
+  margin-left: 8px;
+}
+
+.success-cell {
+  color: var(--accent);
+}
+
+.error-cell {
+  color: var(--danger);
+}
+
+#path-canvas {
+  max-height: 400px;
+}
+
+.path-order-item {
+  display: inline-block;
+  margin: 4px 8px;
+  padding: 4px 10px;
+  background: #2a3040;
+  border-radius: 4px;
+  color: #00d4ff;
+  font-size: 13px;
+}
+</style>
+
+<div class="container">
+  <h1>商品出库</h1>
+
+  <div class="card" style="margin-bottom:0;">
+    <div class="tab-container">
+      <button class="tab-btn active" data-tab="manual">手动录入</button>
+      <button class="tab-btn" data-tab="excel">Excel导入</button>
+      <button class="tab-btn" data-tab="ai">AI识别</button>
+    </div>
+
+    <div id="tabManual">
+      <div class="form-group">
+        <label for="codesInput">商品编码</label>
+        <textarea
+          id="codesInput"
+          rows="8"
+          placeholder="请输入商品编码，多个用逗号或换行分隔"
+        ></textarea>
+      </div>
+      <button type="button" class="btn btn-primary" id="manualSubmitBtn">确认出库</button>
+    </div>
+
+    <div id="tabExcel" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <a href="/api/outbound/template" class="btn btn-secondary" id="downloadOutboundTemplate">下载出库模板</a>
+        <span class="excel-hint">下载模板后按格式填写商品编码，再上传导入</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>选择Excel文件</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="uploadExcelBtn">上传并导入出库</button>
+      </div>
+      <div id="excelResult" style="margin-top:16px;"></div>
+    </div>
+
+    <div id="tabAi" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <p style="color:var(--text-secondary);font-size:14px;margin-bottom:8px;">上传货单图片，AI 自动识别商品编码并出库</p>
+      </div>
+
+      <div id="aiOutSettingsToggle" style="margin-bottom:12px;cursor:pointer;color:var(--text-muted);font-size:13px;user-select:none;" onclick="toggleAiOutSettings()">
+        ⚙️ AI 设置 <span id="aiOutSettingsArrow">▼</span>
+      </div>
+      <div id="aiOutSettingsPanel" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiOutApiUrl">API 网址</label>
+            <input type="text" id="aiOutApiUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3/responses">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiOutApiKey">API Key</label>
+            <input type="password" id="aiOutApiKey" placeholder="输入 API Key">
+          </div>
+          <div class="form-group">
+            <label for="aiOutModel">模型名称</label>
+            <input type="text" id="aiOutModel" placeholder="doubao-seed-2-0-lite-260428">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>选择货单图片</label>
+          <div id="aiOutDropZone" style="border:2px dashed var(--border-color);border-radius:var(--radius-md);padding:40px;text-align:center;cursor:pointer;transition:border-color 0.3s,background 0.3s;background:var(--bg-input);">
+            <div id="aiOutDropIcon" style="font-size:2em;margin-bottom:8px;opacity:0.6;">📷</div>
+            <div id="aiOutDropText" style="color:var(--text-muted);">点击或拖拽图片到此处上传</div>
+            <div style="color:var(--text-muted);font-size:12px;margin-top:4px;">支持 JPG、PNG 格式</div>
+            <input type="file" id="aiOutImageInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+          </div>
+        </div>
+      </div>
+      <div id="aiOutPreviewArea" style="display:none;margin-top:12px;text-align:center;">
+        <img id="aiOutPreviewImg" style="max-width:300px;max-height:200px;border-radius:8px;border:1px solid var(--border-color);">
+      </div>
+      <div style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="aiOutRecognizeBtn" disabled>开始识别</button>
+        <span id="aiOutStatus" style="margin-left:12px;color:var(--text-muted);font-size:14px;"></span>
+      </div>
+      <div id="aiOutResult" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <div id="resultArea"></div>
+
+  <!-- 路径规划预览面板 -->
+  <div id="pathfind-panel" class="card" style="display:none; margin-top: 20px;">
+    <div class="card-header">
+      <h4 style="margin:0;">出库路径规划</h4>
+    </div>
+    <div class="card-body">
+      <canvas id="path-canvas" style="width:100%; border:1px solid #333; border-radius:8px; background:#1a1f2e;"></canvas>
+      <div id="path-order-list" style="margin-top:10px;"></div>
+      <div style="margin-top:10px; text-align:center;">
+        <button id="btn-view-3d" class="btn btn-primary">查看3D动画</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      tabBtns.forEach(function(b) {
+        b.classList.remove('active');
+        b.style.borderBottom = '3px solid transparent';
+        b.style.color = 'var(--text-muted)';
+      });
+      btn.classList.add('active');
+      btn.style.borderBottom = '3px solid var(--accent)';
+      btn.style.color = 'var(--accent)';
+
+      var tab = btn.getAttribute('data-tab');
+      document.getElementById('tabManual').style.display = tab === 'manual' ? 'block' : 'none';
+      document.getElementById('tabExcel').style.display = tab === 'excel' ? 'block' : 'none';
+      document.getElementById('tabAi').style.display = tab === 'ai' ? 'block' : 'none';
+    });
+  });
+})();
+
+function submitOutbound() {
+  const codes = document.getElementById('codesInput').value.trim();
+  if (!codes) {
+    showAlert('请输入商品编码', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('manualSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '处理中...';
+
+  fetch('/api/outbound', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes })
+  })
+    .then(res => res.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = '确认出库';
+      showResult(data);
+      // 出库成功后触发2D路径预览
+      if (data.processed && data.processed.length > 0) {
+        const codes = data.processed.map(p => p.code || p);
+        triggerPathfind(codes);
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = '确认出库';
+      showAlert('请求失败: ' + err.message, 'error');
+    });
+}
+
+document.getElementById('manualSubmitBtn').addEventListener('click', submitOutbound);
+
+function showResult(data) {
+  const area = document.getElementById('resultArea');
+  let html = '';
+
+  if (data.processed && data.processed.length > 0) {
+    html += '<div class="alert alert-success">';
+    html += '<strong>出库成功:</strong><br>';
+    data.processed.forEach(c => {
+      html += '- 编码: ' + escapeHtml(c) + '<br>';
+    });
+    html += '</div>';
+  }
+
+  if (data.errors && data.errors.length > 0) {
+    html += '<div class="alert alert-error">';
+    html += '<strong>出库失败:</strong><br>';
+    data.errors.forEach(e => {
+      html += '- ' + escapeHtml(e.message) + '<br>';
+    });
+    html += '</div>';
+  }
+
+  if (!data.processed || data.processed.length === 0) {
+    if (!data.errors || data.errors.length === 0) {
+      html = '<div class="alert alert-error">没有可处理的商品</div>';
+    }
+  }
+
+  area.innerHTML = html;
+  document.getElementById('codesInput').value = '';
+}
+
+function showAlert(msg, type) {
+  const cls = type === 'success' ? 'alert-success' : 'alert-error';
+  document.getElementById('resultArea').innerHTML =
+    '<div class="alert ' + cls + '">' + escapeHtml(msg) + '</div>';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+document.getElementById('uploadExcelBtn').addEventListener('click', function() {
+  var fileInput = document.getElementById('excelFile');
+  var resultDiv = document.getElementById('excelResult');
+  var btn = document.getElementById('uploadExcelBtn');
+
+  if (!fileInput.files || !fileInput.files[0]) {
+    resultDiv.innerHTML = '<div class="alert alert-error">请选择Excel文件</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  var formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  fetch('/api/outbound/excel', {
+    method: 'POST',
+    body: formData
+  })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = '上传并导入出库';
+
+      if (data.success) {
+        var html = '<div class="alert alert-success">导入完成！共 ' + data.total + ' 行，成功 ' + data.successCount + ' 条';
+        if (data.errorCount > 0) {
+          html += '，失败 ' + data.errorCount + ' 条</div>';
+          html += '<div class="card" style="margin-top:12px;"><table><thead><tr><th>行号</th><th>编码</th><th>失败原因</th></tr></thead><tbody>';
+          data.errors.forEach(function(e) {
+            html += '<tr><td>' + e.row + '</td><td>' + e.name + '</td><td class="error-cell">' + e.message + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        } else {
+          html += '</div>';
+        }
+        if (data.results && data.results.length > 0) {
+          html += '<div class="card" style="margin-top:12px;"><table><thead><tr><th>行号</th><th>商品名</th><th>编码</th></tr></thead><tbody>';
+          data.results.forEach(function(r) {
+            html += '<tr><td>' + r.row + '</td><td>' + r.name + '</td><td class="success-cell">' + r.code + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+        resultDiv.innerHTML = html;
+        fileInput.value = '';
+        // Excel出库成功后触发2D路径预览
+        if (data.results && data.results.length > 0) {
+          const codes = data.results.map(r => r.code || r);
+          triggerPathfind(codes);
+        }
+      } else {
+        resultDiv.innerHTML = '<div class="alert alert-error">' + (data.error || '导入失败') + '</div>';
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = '上传并导入出库';
+      resultDiv.innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+    });
+});
+
+// AI 出库识别
+var aiOutImageFile = null;
+
+function compressImage(file, maxWidth, quality, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var w = img.width, h = img.height;
+      if (w > maxWidth) {
+        h = Math.round(h * maxWidth / w);
+        w = maxWidth;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) {
+        var compressed = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+        callback(compressed);
+      }, 'image/jpeg', quality);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleAiOutSettings() {
+  var panel = document.getElementById('aiOutSettingsPanel');
+  var arrow = document.getElementById('aiOutSettingsArrow');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    arrow.textContent = '▲';
+  } else {
+    panel.style.display = 'none';
+    arrow.textContent = '▼';
+  }
+}
+
+function loadAiOutSettings() {
+  var CURRENT_MODEL = 'doubao-seed-2-0-lite-260428';
+  var OLD_MODELS = ['doubao-seed-2-0-pro-260215', 'doubao-seed-1-8-251228'];
+  var CURRENT_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses';
+  var OLD_URLS = [
+    'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    'https://ark.cn-beijing.volces.com/api/v3',
+    'https://ark.cn-beijing.volces.com/api/v3/'
+  ];
+  try {
+    var saved = JSON.parse(localStorage.getItem('aiConfig') || '{}');
+    // 若缓存的是旧 API URL，自动替换为新端点并更新缓存
+    if (saved.apiUrl && OLD_URLS.indexOf(saved.apiUrl) !== -1) {
+      saved.apiUrl = CURRENT_URL;
+      localStorage.setItem('aiConfig', JSON.stringify(saved));
+    }
+    if (saved.apiUrl) document.getElementById('aiOutApiUrl').value = saved.apiUrl;
+    if (saved.apiKey) document.getElementById('aiOutApiKey').value = saved.apiKey;
+    // 若缓存的是旧模型名，自动替换为新默认值并更新缓存
+    if (saved.model && OLD_MODELS.indexOf(saved.model) !== -1) {
+      saved.model = CURRENT_MODEL;
+      localStorage.setItem('aiConfig', JSON.stringify(saved));
+    }
+    if (saved.model) document.getElementById('aiOutModel').value = saved.model;
+  } catch (e) {}
+}
+
+function saveAiOutSettings() {
+  var cfg = {
+    apiUrl: document.getElementById('aiOutApiUrl').value.trim(),
+    apiKey: document.getElementById('aiOutApiKey').value.trim(),
+    model: document.getElementById('aiOutModel').value.trim()
+  };
+  localStorage.setItem('aiConfig', JSON.stringify(cfg));
+}
+
+document.getElementById('aiOutApiUrl').addEventListener('change', saveAiOutSettings);
+document.getElementById('aiOutApiKey').addEventListener('change', saveAiOutSettings);
+document.getElementById('aiOutModel').addEventListener('change', saveAiOutSettings);
+loadAiOutSettings();
+
+document.getElementById('aiOutDropZone').addEventListener('click', function() {
+  document.getElementById('aiOutImageInput').click();
+});
+
+document.getElementById('aiOutDropZone').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--accent)';
+  this.style.background = 'var(--bg-hover)';
+});
+
+document.getElementById('aiOutDropZone').addEventListener('dragleave', function() {
+  this.style.borderColor = 'var(--border-color)';
+  this.style.background = 'var(--bg-input)';
+});
+
+document.getElementById('aiOutDropZone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--border-color)';
+  this.style.background = 'var(--bg-input)';
+  var file = e.dataTransfer.files[0];
+  if (file) handleAiOutImage(file);
+});
+
+document.getElementById('aiOutImageInput').addEventListener('change', function() {
+  var file = this.files[0];
+  if (file) handleAiOutImage(file);
+});
+
+function handleAiOutImage(file) {
+  if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+    showAlert('请上传 JPG、PNG 或 WebP 格式的图片', 'error');
+    return;
+  }
+  aiOutImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('aiOutPreviewImg').src = e.target.result;
+    document.getElementById('aiOutPreviewArea').style.display = 'block';
+    document.getElementById('aiOutRecognizeBtn').disabled = false;
+    document.getElementById('aiOutDropText').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('aiOutRecognizeBtn').addEventListener('click', function() {
+  var btn = this;
+  if (!aiOutImageFile) {
+    showAlert('请先上传图片', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '正在压缩...';
+  document.getElementById('aiOutStatus').textContent = '正在压缩图片，请稍候...';
+
+  compressImage(aiOutImageFile, 1200, 0.85, function(compressedFile) {
+    document.getElementById('aiOutStatus').textContent = '正在上传并识别，请稍候...';
+    var formData = new FormData();
+    formData.append('file', compressedFile);
+
+    var aiUrl = document.getElementById('aiOutApiUrl').value.trim();
+    var aiKey = document.getElementById('aiOutApiKey').value.trim();
+    var aiModel = document.getElementById('aiOutModel').value.trim();
+    if (aiUrl) formData.append('aiUrl', aiUrl);
+    if (aiKey) formData.append('aiKey', aiKey);
+    if (aiModel) formData.append('aiModel', aiModel);
+
+    fetch('/api/outbound/ai-recognize', { method: 'POST', body: formData })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = '开始识别';
+        document.getElementById('aiOutStatus').textContent = '';
+        if (data.success && data.items && data.items.length > 0) {
+          showAiOutResults(data.items);
+        } else {
+          document.getElementById('aiOutResult').innerHTML = '<div class="alert alert-error">识别失败：' + (data.error || '未能识别到商品编码，请重新上传') + '</div>';
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = '开始识别';
+        document.getElementById('aiOutStatus').textContent = '';
+        document.getElementById('aiOutResult').innerHTML = '<div class="alert alert-error">网络错误，请重试</div>';
+      });
+  });
+});
+
+function showAiOutResults(items) {
+  var html = '<div style="margin-top:12px;">';
+  html += '<div style="color:var(--accent);font-weight:bold;margin-bottom:8px;">识别到 ' + items.length + ' 条商品编码，请确认后出库</div>';
+  html += '<table><thead><tr><th>序号</th><th>商品编码</th></tr></thead><tbody>';
+  items.forEach(function(item, idx) {
+    html += '<tr><td>' + (idx + 1) + '</td><td><input type="text" class="ai-code" value="' + (item.code || '') + '" style="width:250px;"></td></tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="margin-top:16px;display:flex;gap:8px;">';
+  html += '<button type="button" class="btn btn-primary" id="aiOutConfirmBtn">确认出库 (' + items.length + ' 件)</button>';
+  html += '<button type="button" class="btn btn-secondary" id="aiPathfindBtn">确认出库并路径规划</button>';
+  html += '</div></div>';
+  document.getElementById('aiOutResult').innerHTML = html;
+
+  document.getElementById('aiOutConfirmBtn').addEventListener('click', function() {
+    submitAiOutbound(false);
+  });
+  document.getElementById('aiPathfindBtn').addEventListener('click', function() {
+    submitAiOutbound(true);
+  });
+}
+
+function submitAiOutbound(withPathfind) {
+  var codes = [];
+  document.querySelectorAll('#aiOutResult .ai-code').forEach(function(input) {
+    var code = input.value.trim();
+    if (code) codes.push(code);
+  });
+  if (codes.length === 0) {
+    showAlert('没有有效的商品编码', 'error');
+    return;
+  }
+
+  var btn = withPathfind ? document.getElementById('aiPathfindBtn') : document.getElementById('aiOutConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = '出库中...';
+
+  fetch('/api/outbound', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes: codes.join(',') })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = withPathfind ? '确认出库并路径规划' : '确认出库';
+      showResult(data);
+      if (data.processed && data.processed.length > 0) {
+        const codes = data.processed.map(p => p.code || p);
+        triggerPathfind(codes);
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = withPathfind ? '确认出库并路径规划' : '确认出库';
+      showAlert('出库失败: ' + err.message, 'error');
+    });
+}
+
+// ===== 2D路径预览 =====
+let pathAnimationId = null;
+let currentBatchId = null;
+
+async function triggerPathfind(codes) {
+  if (!codes || codes.length === 0) return;
+
+  try {
+    const res = await fetch('/api/outbound/pathfind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showAlert('路径规划失败：' + (data.message || data.error || '未知错误'), 'error');
+      return;
+    }
+    currentBatchId = data.batchId;
+
+    const zonesRes = await fetch('/api/zones');
+    const zonesData = await zonesRes.json();
+    const zones = zonesData.zones || zonesData;
+
+    document.getElementById('pathfind-panel').style.display = 'block';
+    // 等待浏览器完成重排，让canvas获得真实尺寸
+    requestAnimationFrame(() => {
+      renderPathPreview(data, zones);
+      document.getElementById('pathfind-panel').scrollIntoView({ behavior: 'smooth' });
+    });
+  } catch (err) {
+    console.error('路径规划请求失败:', err);
+  }
+}
+
+function renderPathPreview(pathData, zones) {
+  const canvas = document.getElementById('path-canvas');
+  const ctx = canvas.getContext('2d');
+
+  let W = canvas.offsetWidth;
+  if (W === 0) {
+    W = canvas.parentElement.offsetWidth || 600;
+  }
+  canvas.width = W * (window.devicePixelRatio || 1);
+  canvas.height = 400 * (window.devicePixelRatio || 1);
+  canvas.style.height = '400px';
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  const H = 400;
+
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  zones.forEach(z => {
+    const zw = z.cols * z.cell_width;
+    const zd = z.rows * z.cell_depth;
+    minX = Math.min(minX, z.pos_x);
+    maxX = Math.max(maxX, z.pos_x + zw);
+    minZ = Math.min(minZ, z.pos_z);
+    maxZ = Math.max(maxZ, z.pos_z + zd);
+  });
+  minX = Math.min(minX, 0); minZ = Math.min(minZ, 0);
+  maxX = Math.max(maxX, 0); maxZ = Math.max(maxZ, 0);
+
+  const padding = 40;
+  const worldW = maxX - minX || 1;
+  const worldH = maxZ - minZ || 1;
+  const scale = Math.min((W - padding*2) / worldW, (H - padding*2) / worldH);
+
+  function toCanvas(wx, wz) {
+    return {
+      x: padding + (wx - minX) * scale,
+      y: padding + (wz - minZ) * scale
+    };
+  }
+
+  let dashOffset = 0;
+  let blinkOn = true;
+  let blinkCounter = 0;
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    zones.forEach(z => {
+      const topLeft = toCanvas(z.pos_x, z.pos_z);
+      const w = z.cols * z.cell_width * scale;
+      const h = z.rows * z.cell_depth * scale;
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(topLeft.x, topLeft.y, w, h);
+      ctx.strokeStyle = '#4a5568';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(topLeft.x, topLeft.y, w, h);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(z.code || z.name, topLeft.x + w/2, topLeft.y + h/2 + 4);
+    });
+
+    const ep = pathData.exitPos || { x: 0, z: 0 };
+    const exitPos = toCanvas(ep.x, ep.z);
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(exitPos.x, exitPos.y - 10);
+    ctx.lineTo(exitPos.x - 8, exitPos.y + 6);
+    ctx.lineTo(exitPos.x + 8, exitPos.y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('出口', exitPos.x, exitPos.y + 20);
+
+    if (pathData.targetCells) {
+      pathData.targetCells.forEach((tc) => {
+        const pos = toCanvas(tc.worldX, tc.worldZ);
+        ctx.fillStyle = blinkOn ? 'rgba(0, 255, 136, 0.8)' : 'rgba(0, 255, 136, 0.3)';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        const orderItem = pathData.order ? pathData.order.find(o => o.zone_code === tc.zone_code && o.row_num === tc.row_num && o.col_num === tc.col_num) : null;
+        if (orderItem) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(String(orderItem.orderIndex + 1), pos.x, pos.y + 4);
+        }
+      });
+    }
+
+    if (pathData.fullPath && pathData.fullPath.length > 1) {
+      ctx.strokeStyle = '#00d4ff';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([10, 5]);
+      ctx.lineDashOffset = -dashOffset;
+      ctx.beginPath();
+      const firstPt = toCanvas(pathData.fullPath[0].x, pathData.fullPath[0].z);
+      ctx.moveTo(firstPt.x, firstPt.y);
+      for (let i = 1; i < pathData.fullPath.length; i++) {
+        const pt = toCanvas(pathData.fullPath[i].x, pathData.fullPath[i].z);
+        ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    dashOffset += 0.5;
+    blinkCounter++;
+    if (blinkCounter % 30 === 0) blinkOn = !blinkOn;
+
+    pathAnimationId = requestAnimationFrame(draw);
+  }
+
+  if (pathAnimationId) cancelAnimationFrame(pathAnimationId);
+  draw();
+
+  const orderList = document.getElementById('path-order-list');
+  if (pathData.order && pathData.order.length > 0) {
+    orderList.innerHTML = '<strong style="color:#ccc;">拣货顺序：</strong>' +
+      pathData.order
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map(o => '<span class="path-order-item">' + (o.orderIndex + 1) + '. ' + o.zone_code + '-' + o.row_num + '-' + o.col_num + '-' + o.layer_num + '</span>')
+        .join('');
+  }
+}
+
+document.getElementById('btn-view-3d').addEventListener('click', function() {
+  if (currentBatchId) {
+    window.location.href = '/warehouse?pathfind=' + currentBatchId;
+  }
+});
+</script>
+
+<%- include('partials/footer') %>
